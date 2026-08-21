@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Rooftop - Panel Técnico</title>
-    <!-- Librería MQTT de Eclipse Paho para WebSockets -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <!-- Librería MQTT de Eclipse Paho actualizada (CDN Estable) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; text-align: center; }
         h1 { color: #2c3e50; }
@@ -94,12 +94,11 @@
 </div>
 
 <script>
-    // Configuración específica para WebSockets en HiveMQ Cloud (Puerto 8884 con wss:// y ruta /mqtt)
     const brokerHost = "d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud";
     const brokerPort = 8884;
     const clientId = "web_client_" + Math.random().toString(16).substr(2, 8);
     
-    // Inicialización correcta de Paho Client con WebSockets seguros
+    // Con esta versión del script, el objeto global es Paho.MQTT.Client y Paho.MQTT.Message
     let client = new Paho.MQTT.Client(brokerHost, brokerPort, "/mqtt", clientId);
     
     let estadosCmd = {
@@ -118,8 +117,6 @@
     client.onMessageArrived = message => {
         let topic = message.destinationName;
         let payload = message.payloadString;
-
-        console.log("MQTT Recibido -> [" + topic + "]: " + payload);
 
         if (topic === "rooftop/estado/alerta") {
             let elem = document.getElementById("txt_alerta");
