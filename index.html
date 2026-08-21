@@ -3,24 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Rooftop - Cloud MQTT</title>
-    <!-- Librería MQTT de Eclipse Paho -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libsasl/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <title>Control Rooftop - Panel Técnico</title>
+    <!-- Librería MQTT de Eclipse Paho para WebSockets -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; text-align: center; }
         h1 { color: #2c3e50; }
         .container { max-width: 600px; margin: auto; }
         .card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .card h3 { margin-top: 0; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; }
+        .card h3 { margin-top: 0; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px; cursor: pointer; }
         .btn-group { display: flex; justify-content: space-around; gap: 10px; margin-top: 10px; }
-        button { flex: 1; padding: 12px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
         .btn-off { background-color: #e74c3c; color: white; }
         .btn-on { background-color: #2ecc71; color: white; }
         .btn-mode { background-color: #95a5a6; color: white; }
         .btn-mode.active { background-color: #3498db; }
-        .status-box { font-size: 18px; font-weight: bold; padding: 10px; border-radius: 5px; background: #ecf0f1; margin: 5px 0; }
+        .status-box { font-size: 16px; font-weight: bold; padding: 8px; border-radius: 5px; background: #ecf0f1; margin: 5px 0; display: inline-block; }
         .alerta-normal { color: #27ae60; }
         .alerta-error { color: #c0392b; }
+        .hidden-section { display: none; margin-top: 15px; border-top: 1px dashed #bdc3c7; padding-top: 15px; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; font-size: 15px; }
+        .data-grid div { background: #f8f9fa; padding: 8px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -28,61 +31,72 @@
 <div class="container">
     <h1>Control Rooftop</h1>
 
-    <!-- Selección de Modo -->
+    <!-- Panel de Estado General -->
     <div class="card">
-        <h3>Modo de Operación</h3>
-        <div class="btn-group">
-            <button id="btn_remoto" class="btn-mode active" onclick="cambiarModo('REMOTO')">Remoto</button>
-            <button id="btn_manual" class="btn-mode" onclick="cambiarModo('MANUAL')">Manual</button>
-            <button id="btn_auto" class="btn-mode" onclick="cambiarModo('AUTO')">Auto (25°C)</button>
+        <h3>Monitoreo del Sistema</h3>
+        <div class="data-grid">
+            <div>Alerta: <br><strong id="txt_alerta" class="alerta-normal">Normal</strong></div>
+            <div>Etapas Activas: <br><strong id="txt_etapas">0</strong></div>
+            <div>Retorno: <br><strong id="txt_retorno">--</strong> °C</div>
+            <div>Evaporación: <br><strong id="txt_evap">--</strong> °C</div>
+            <div>Baja 1: <br><strong id="txt_baja1">--</strong> °C</div>
+            <div>Baja 2: <br><strong id="txt_baja2">--</strong> °C</div>
         </div>
-        <p style="margin-top: 10px; font-size: 14px; color: #7f8c8d;">Modo actual seleccionado: <strong id="lbl_modo">REMOTO</strong></p>
     </div>
 
-    <!-- Panel de Estado -->
+    <!-- Sección de Acceso Técnico (Contiene Modos y Forzados) -->
     <div class="card">
-        <h3>Estado del Sistema</h3>
-        <p>Alerta: <span id="txt_alerta" class="status-box alerta-normal">Normal</span></p>
-        <p>Etapas de Frío Activas: <strong id="txt_etapas">0</strong></p>
-        <p>Temperatura Retorno: <strong id="txt_retorno">--</strong> °C</p>
-    </div>
-
-    <!-- Controles Manuales (Solo operan en Modo Manual) -->
-    <div class="card" id="panel_manual" style="opacity: 0.5; pointer-events: none;">
-        <h3>Forzados Manuales</h3>
+        <h3 onclick="toggleTecnico()">⚙️ Acceso de Técnicos (Click para abrir)</h3>
         
-        <p>Ventilador</p>
-        <div class="btn-group">
-            <button id="cmd_vent" class="btn-off" onclick="toggleCmd('ventilador')">Apagado</button>
-        </div>
+        <div id="panel_tecnico" class="hidden-section">
+            
+            <!-- Selector de Modos de Operación -->
+            <h4 style="color: #2980b9; margin-bottom: 5px;">Modo de Operación</h4>
+            <div class="btn-group">
+                <button id="btn_remoto" class="btn-mode active" onclick="cambiarModo('REMOTO')">Remoto</button>
+                <button id="btn_manual" class="btn-mode" onclick="cambiarModo('MANUAL')">Manual</button>
+                <button id="btn_auto" class="btn-mode" onclick="cambiarModo('AUTO')">Auto (25°C)</button>
+            </div>
+            <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 20px;">Modo activo: <strong id="lbl_modo">REMOTO</strong></p>
 
-        <p>Frío 1</p>
-        <div class="btn-group">
-            <button id="cmd_f1" class="btn-off" onclick="toggleCmd('frio1')">Apagado</button>
-        </div>
+            <!-- Forzados Manuales (Se habilitan solo en modo Manual) -->
+            <div id="panel_manual" style="opacity: 0.4; pointer-events: none; transition: 0.3s;">
+                <h4 style="color: #c0392b; margin-bottom: 5px;">Forzados Manuales</h4>
+                
+                <p style="margin: 5px 0; font-size: 14px;">Ventilador</p>
+                <div class="btn-group">
+                    <button id="cmd_vent" class="btn-off" onclick="toggleCmd('ventilador')">Apagado</button>
+                </div>
 
-        <p>Frío 2</p>
-        <div class="btn-group">
-            <button id="cmd_f2" class="btn-off" onclick="toggleCmd('frio2')">Apagado</button>
-        </div>
+                <p style="margin: 5px 0; font-size: 14px;">Frío 1</p>
+                <div class="btn-group">
+                    <button id="cmd_f1" class="btn-off" onclick="toggleCmd('frio1')">Apagado</button>
+                </div>
 
-        <p>Calor 1</p>
-        <div class="btn-group">
-            <button id="cmd_c1" class="btn-off" onclick="toggleCmd('calor1')">Apagado</button>
-        </div>
+                <p style="margin: 5px 0; font-size: 14px;">Frío 2</p>
+                <div class="btn-group">
+                    <button id="cmd_f2" class="btn-off" onclick="toggleCmd('frio2')">Apagado</button>
+                </div>
 
-        <p>Calor 2</p>
-        <div class="btn-group">
-            <button id="cmd_c2" class="btn-off" onclick="toggleCmd('calor2')">Apagado</button>
+                <p style="margin: 5px 0; font-size: 14px;">Calor 1</p>
+                <div class="btn-group">
+                    <button id="cmd_c1" class="btn-off" onclick="toggleCmd('calor1')">Apagado</button>
+                </div>
+
+                <p style="margin: 5px 0; font-size: 14px;">Calor 2</p>
+                <div class="btn-group">
+                    <button id="cmd_c2" class="btn-off" onclick="toggleCmd('calor2')">Apagado</button>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
 <script>
-    // Configuración de conexión MQTT en la nube (HiveMQ WebSockets)
-    // Nota: Asegúrate de habilitar WebSockets en tu broker HiveMQ Cloud (Puerto 8884 por lo general)
+    // Configuración MQTT WebSockets (Asegúrate de usar el puerto WS/WSS de tu broker, ej: 8884)
     const broker = "d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud";
-    const port = 8884; // Puerto WS/WSS para navegadores web
+    const port = 8884; 
     const clientId = "web_client_" + Math.random().toString(16).substr(2, 8);
     
     let client = new Paho.MQTT.Client(broker, port, clientId);
@@ -95,8 +109,8 @@
         calor2: 0
     };
 
-    client.onConnectionLost = resposta => {
-        console.log("Conexión perdida: " + resposta.errorMessage);
+    client.onConnectionLost = response => {
+        console.log("Conexión perdida: " + response.errorMessage);
         setTimeout(conectarMQTT, 5000);
     };
 
@@ -107,15 +121,17 @@
         if (topic === "rooftop/estado/alerta") {
             let elem = document.getElementById("txt_alerta");
             elem.innerText = payload;
-            if(payload === "Normal") {
-                elem.className = "status-box alerta-normal";
-            } else {
-                elem.className = "status-box alerta-error";
-            }
+            elem.className = (payload === "Normal") ? "alerta-normal" : "alerta-error";
         } else if (topic === "rooftop/estado/etapas") {
             document.getElementById("txt_etapas").innerText = payload;
         } else if (topic === "rooftop/sensor/ntc1") {
             document.getElementById("txt_retorno").innerText = payload;
+        } else if (topic === "rooftop/sensor/ntc2") {
+            document.getElementById("txt_evap").innerText = payload;
+        } else if (topic === "rooftop/sensor/baja1") {
+            document.getElementById("txt_baja1").innerText = payload;
+        } else if (topic === "rooftop/sensor/baja2") {
+            document.getElementById("txt_baja2").innerText = payload;
         } else if (topic === "rooftop/estado/modo") {
             actualizarInterfazModo(payload);
         }
@@ -139,6 +155,11 @@
         });
     }
 
+    function toggleTecnico() {
+        let panel = document.getElementById("panel_tecnico");
+        panel.style.display = (panel.style.display === "block") ? "none" : "block";
+    }
+
     function cambiarModo(modo) {
         let message = new Paho.MQTT.Message(modo);
         message.destinationName = "rooftop/cmd/modo";
@@ -148,7 +169,6 @@
     function actualizarInterfazModo(modo) {
         document.getElementById("lbl_modo").innerText = modo;
         
-        // Remover clase active de todos
         document.getElementById("btn_remoto").className = "btn-mode";
         document.getElementById("btn_manual").className = "btn-mode";
         document.getElementById("btn_auto").className = "btn-mode";
@@ -157,7 +177,7 @@
 
         if (modo === "REMOTO") {
             document.getElementById("btn_remoto").className = "btn-mode active";
-            panelManual.style.opacity = "0.5";
+            panelManual.style.opacity = "0.4";
             panelManual.style.pointerEvents = "none";
         } else if (modo === "MANUAL") {
             document.getElementById("btn_manual").className = "btn-mode active";
@@ -165,7 +185,7 @@
             panelManual.style.pointerEvents = "auto";
         } else if (modo === "AUTO") {
             document.getElementById("btn_auto").className = "btn-mode active";
-            panelManual.style.opacity = "0.5";
+            panelManual.style.opacity = "0.4";
             panelManual.style.pointerEvents = "none";
         }
     }
@@ -174,7 +194,9 @@
         estadosCmd[dispositivo] = estadosCmd[dispositivo] === 1 ? 0 : 1;
         let estadoStr = estadosCmd[dispositivo] === 1 ? "ON" : "OFF";
         
-        let btn = document.getElementById("cmd_" + (dispositivo === 'ventilador' ? 'vent' : dispositivo.replace('frio','f').replace('calor','c')));
+        let idBtn = "cmd_" + (dispositivo === 'ventilador' ? 'vent' : dispositivo.replace('frio','f').replace('calor','c'));
+        let btn = document.getElementById(idBtn);
+        
         if (estadosCmd[dispositivo] === 1) {
             btn.className = "btn-on";
             btn.innerText = "Encendido";
@@ -188,24 +210,8 @@
         client.send(message);
     }
 
-    // Iniciar conexión al cargar la página
     conectarMQTT();
 </script>
 
 </body>
 </html>
-
-       
-
-           
-
- 
-           
-            
-
-  
-           
-         
-
-          
-        
