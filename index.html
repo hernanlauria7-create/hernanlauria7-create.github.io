@@ -94,11 +94,13 @@
 </div>
 
 <script>
-    const broker = "d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud";
-    const port = 8884; 
+    // Configuración específica para WebSockets en HiveMQ Cloud (Puerto 8884 con wss:// y ruta /mqtt)
+    const brokerHost = "d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud";
+    const brokerPort = 8884;
     const clientId = "web_client_" + Math.random().toString(16).substr(2, 8);
     
-    let client = new Paho.MQTT.Client(broker, port, clientId);
+    // Inicialización correcta de Paho Client con WebSockets seguros
+    let client = new Paho.MQTT.Client(brokerHost, brokerPort, "/mqtt", clientId);
     
     let estadosCmd = {
         ventilador: 0,
@@ -139,19 +141,18 @@
     };
 
     function conectarMQTT() {
-        console.log("Conectando al broker MQTT...");
+        console.log("Conectando al broker MQTT via WebSockets...");
         client.connect({
             userName: "Hernan76",
             password: "Pearljam76",
             useSSL: true,
             onSuccess: () => {
-                console.log("¡Conectado exitosamente!");
-                // Nos suscribimos a todos los estados y sensores necesarios
+                console.log("¡Conectado exitosamente a la nube!");
                 client.subscribe("rooftop/estado/#");
                 client.subscribe("rooftop/sensor/#");
             },
             onFailure: (err) => {
-                console.log("Fallo al conectar: " + err.errorMessage);
+                console.log("Fallo al conectar con la nube: " + err.errorMessage);
                 setTimeout(conectarMQTT, 5000);
             }
         });
