@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Rooftop - Panel Técnico</title>
-    <!-- Librería MQTT de Eclipse Paho actualizada (CDN Estable) -->
+    <!-- Librería MQTT de Eclipse Paho -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; text-align: center; }
@@ -18,7 +18,6 @@
         .btn-on { background-color: #2ecc71; color: white; }
         .btn-mode { background-color: #95a5a6; color: white; }
         .btn-mode.active { background-color: #3498db; }
-        .status-box { font-size: 16px; font-weight: bold; padding: 8px; border-radius: 5px; background: #ecf0f1; margin: 5px 0; display: inline-block; }
         .alerta-normal { color: #27ae60; }
         .alerta-error { color: #c0392b; }
         .hidden-section { display: none; margin-top: 15px; border-top: 1px dashed #bdc3c7; padding-top: 15px; }
@@ -44,13 +43,12 @@
         </div>
     </div>
 
-    <!-- Sección de Acceso Técnico (Protegida con contraseña 1234) -->
+    <!-- Sección de Acceso Técnico -->
     <div class="card">
         <h3 onclick="verificarAccesoTecnico()">⚙️ Acceso de Técnicos (Click)</h3>
         
         <div id="panel_tecnico" class="hidden-section">
             
-            <!-- Selector de Modos de Operación -->
             <h4 style="color: #2980b9; margin-bottom: 5px;">Modo de Operación</h4>
             <div class="btn-group">
                 <button id="btn_remoto" class="btn-mode active" onclick="cambiarModo('REMOTO')">Remoto</button>
@@ -59,34 +57,23 @@
             </div>
             <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 20px;">Modo activo: <strong id="lbl_modo">REMOTO</strong></p>
 
-            <!-- Forzados Manuales (Se habilitan solo en modo Manual) -->
             <div id="panel_manual" style="opacity: 0.4; pointer-events: none; transition: 0.3s;">
                 <h4 style="color: #c0392b; margin-bottom: 5px;">Forzados Manuales</h4>
                 
                 <p style="margin: 5px 0; font-size: 14px;">Ventilador</p>
-                <div class="btn-group">
-                    <button id="cmd_vent" class="btn-off" onclick="toggleCmd('ventilador')">Apagado</button>
-                </div>
+                <div class="btn-group"><button id="cmd_vent" class="btn-off" onclick="toggleCmd('ventilador')">Apagado</button></div>
 
                 <p style="margin: 5px 0; font-size: 14px;">Frío 1</p>
-                <div class="btn-group">
-                    <button id="cmd_f1" class="btn-off" onclick="toggleCmd('frio1')">Apagado</button>
-                </div>
+                <div class="btn-group"><button id="cmd_f1" class="btn-off" onclick="toggleCmd('frio1')">Apagado</button></div>
 
                 <p style="margin: 5px 0; font-size: 14px;">Frío 2</p>
-                <div class="btn-group">
-                    <button id="cmd_f2" class="btn-off" onclick="toggleCmd('frio2')">Apagado</button>
-                </div>
+                <div class="btn-group"><button id="cmd_f2" class="btn-off" onclick="toggleCmd('frio2')">Apagado</button></div>
 
                 <p style="margin: 5px 0; font-size: 14px;">Calor 1</p>
-                <div class="btn-group">
-                    <button id="cmd_c1" class="btn-off" onclick="toggleCmd('calor1')">Apagado</button>
-                </div>
+                <div class="btn-group"><button id="cmd_c1" class="btn-off" onclick="toggleCmd('calor1')">Apagado</button></div>
 
                 <p style="margin: 5px 0; font-size: 14px;">Calor 2</p>
-                <div class="btn-group">
-                    <button id="cmd_c2" class="btn-off" onclick="toggleCmd('calor2')">Apagado</button>
-                </div>
+                <div class="btn-group"><button id="cmd_c2" class="btn-off" onclick="toggleCmd('calor2')">Apagado</button></div>
             </div>
 
         </div>
@@ -94,20 +81,15 @@
 </div>
 
 <script>
+    // Configuración completa para WebSockets seguros en HiveMQ Cloud
     const brokerHost = "d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud";
     const brokerPort = 8884;
     const clientId = "web_client_" + Math.random().toString(16).substr(2, 8);
     
-    // Con esta versión del script, el objeto global es Paho.MQTT.Client y Paho.MQTT.Message
-    let client = new Paho.MQTT.Client(brokerHost, brokerPort, "/mqtt", clientId);
+    // Inicialización pasando host, puerto y ruta WebSocket explícita con WSS
+    let client = new Paho.MQTT.Client(brokerHost, Number(brokerPort), "/mqtt", clientId);
     
-    let estadosCmd = {
-        ventilador: 0,
-        frio1: 0,
-        frio2: 0,
-        calor1: 0,
-        calor2: 0
-    };
+    let estadosCmd = { ventilador: 0, frio1: 0, frio2: 0, calor1: 0, calor2: 0 };
 
     client.onConnectionLost = response => {
         console.log("Conexión perdida: " + response.errorMessage);
@@ -117,6 +99,8 @@
     client.onMessageArrived = message => {
         let topic = message.destinationName;
         let payload = message.payloadString;
+
+        console.log("MQTT RECIBIDO -> Tópico: [" + topic + "] Valor: " + payload);
 
         if (topic === "rooftop/estado/alerta") {
             let elem = document.getElementById("txt_alerta");
@@ -145,8 +129,14 @@
             useSSL: true,
             onSuccess: () => {
                 console.log("¡Conectado exitosamente a la nube!");
-                client.subscribe("rooftop/estado/#");
-                client.subscribe("rooftop/sensor/#");
+                // Suscripción explícita a los tópicos que emite el ESP2
+                client.subscribe("rooftop/estado/alerta");
+                client.subscribe("rooftop/estado/etapas");
+                client.subscribe("rooftop/estado/modo");
+                client.subscribe("rooftop/sensor/ntc1");
+                client.subscribe("rooftop/sensor/ntc2");
+                client.subscribe("rooftop/sensor/baja1");
+                client.subscribe("rooftop/sensor/baja2");
             },
             onFailure: (err) => {
                 console.log("Fallo al conectar con la nube: " + err.errorMessage);
@@ -173,7 +163,6 @@
 
     function actualizarInterfazModo(modo) {
         document.getElementById("lbl_modo").innerText = modo;
-        
         document.getElementById("btn_remoto").className = "btn-mode";
         document.getElementById("btn_manual").className = "btn-mode";
         document.getElementById("btn_auto").className = "btn-mode";
