@@ -1,122 +1,5 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Monitoreo y Control Rooftop</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f4f9; margin: 0; padding: 20px; }
-        .card { background: white; padding: 15px; margin: 10px auto; width: 340px; border-radius: 10px; box-shadow: 0 2px 5px #ccc; }
-        .card-wide { background: white; padding: 15px; margin: 10px auto; width: 90%; max-width: 600px; border-radius: 10px; box-shadow: 0 2px 5px #ccc; text-align: left; }
-        h1, h2 { color: #333; }
-        button { padding: 8px 15px; margin: 5px; font-size: 14px; cursor: pointer; border: 2px solid #ccc; border-radius: 5px; background-color: #e4e4e4; }
-        .btn-activo { background-color: #28a745 !important; color: white !important; border-color: #1e7e34 !important; font-weight: bold; }
-        .btn-inactivo { background-color: #dc3545 !important; color: white !important; border-color: #bd2130 !important; }
-        .hidden { display: none; }
-        input[type="password"] { padding: 8px; font-size: 14px; width: 150px; }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; background: #6c757d; }
-        .badge-on { background-color: #28a745; }
-        .badge-off { background-color: #dc3545; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
-        th { background-color: #f2f2f2; }
-    </style>
-</head>
-<body>
-
-    <!-- VISTA 1: MONITOREO -->
-    <div id="vista-monitoreo">
-        <h1>Rooftop - Estado General</h1>
-        <div class="card">
-            <h3>Temperaturas Generales</h3>
-            <p>Retorno (NTC 1): <strong id="ntc1">---</strong></p>
-            <p>Evaporador (NTC 2): <strong id="ntc2">---</strong></p>
-        </div>
-        <div class="card">
-            <h3>Estado del Sistema</h3>
-            <p>Alerta: <strong id="txt_alerta">Normal</strong></p>
-            <p>Ventilación: <strong id="txt_conf">---</strong></p>
-            <p>Modo / Etapas: <strong id="etapas-gen">Apagado</strong></p>
-        </div>
-        <div class="card">
-            <h3>Acceso Técnicos</h3>
-            <input type="password" id="txt-pass" placeholder="Clave (1234)">
-            <button onclick="verificarClave()" style="background:#007bff; color:white;">Ingresar</button>
-        </div>
-    </div>
-
-    <!-- VISTA 2: PANEL TÉCNICO -->
-    <div id="vista-tecnico" class="hidden">
-        <h1>Panel Técnico y Diagnóstico</h1>
-        <button onclick="volverMonitoreo()" style="background:#6c757d; color:white; margin-bottom: 15px;">Volver a Monitoreo</button>
-
-        <div class="card">
-            <h3>Diagnóstico del Sistema</h3>
-            <p>Estado Actual: <strong id="etapas">Apagado</strong></p>
-            <p>Caño Baja Circuito 1: <strong id="baja1">---</strong></p>
-            <p>Caño Baja Circuito 2: <strong id="baja2">---</strong></p>
-            <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
-            <p>Presostatos C1: <span id="pres1" style="font-weight:bold;">---</span></p>
-            <p>Presostatos C2: <span id="pres2" style="font-weight:bold;">---</span></p>
-        </div>
-
-        <div class="card-wide">
-            <h3>Registro de Errores e Historial</h3>
-            <div style="max-height: 150px; overflow-y: auto;">
-                <table id="tabla-errores">
-                    <thead>
-                        <tr><th>Fecha / Hora</th><th>Evento / Falla</th><th>Temperaturas</th></tr>
-                    </thead>
-                    <tbody id="cuerpo-tabla-errores">
-                        <tr><td colspan="3">Sin errores registrados.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <button onclick="limpiarHistorial()" style="background:#dc3545; color:white; margin-top:10px;">Limpiar Historial</button>
-        </div>
-
-        <div class="card">
-            <h3>Estado Operativo de Salidas</h3>
-            <p>Ventilador: <span id="ind-vent" class="badge badge-off">APAGADO</span></p>
-            <p>Frío 1: <span id="ind-f1" class="badge badge-off">APAGADO</span></p>
-            <p>Frío 2: <span id="ind-f2" class="badge badge-off">APAGADO</span></p>
-            <p>Calor 1: <span id="ind-c1" class="badge badge-off">APAGADO</span></p>
-            <p>Calor 2: <span id="ind-c2" class="badge badge-off">APAGADO</span></p>
-        </div>
-
-        <!-- CONTROLES CON BOTONES MARCADOS DINÁMICAMENTE -->
-        <div class="card">
-            <h3>Control Ventilación</h3>
-            <button id="btn-vent-on" onclick="enviarComando('rooftop/cmd/ventilador', 'ON')">Prender</button>
-            <button id="btn-vent-off" onclick="enviarComando('rooftop/cmd/ventilador', 'OFF')">Apagar</button>
-        </div>
-
-        <div class="card">
-            <h3>Control Frío Etapa 1</h3>
-            <button id="btn-f1-on" onclick="enviarComando('rooftop/cmd/frio1', 'ON')">Forzar ON</button>
-            <button id="btn-f1-off" onclick="enviarComando('rooftop/cmd/frio1', 'OFF')">Forzar OFF</button>
-        </div>
-
-        <div class="card">
-            <h3>Control Frío Etapa 2</h3>
-            <button id="btn-f2-on" onclick="enviarComando('rooftop/cmd/frio2', 'ON')">Forzar ON</button>
-            <button id="btn-f2-off" onclick="enviarComando('rooftop/cmd/frio2', 'OFF')">Forzar OFF</button>
-        </div>
-
-        <div class="card">
-            <h3>Control Calefacción Etapa 1</h3>
-            <button id="btn-c1-on" onclick="enviarComando('rooftop/cmd/calor1', 'ON')">Forzar ON</button>
-            <button id="btn-c1-off" onclick="enviarComando('rooftop/cmd/calor1', 'OFF')">Forzar OFF</button>
-        </div>
-
-        <div class="card">
-            <h3>Control Calefacción Etapa 2</h3>
-            <button id="btn-c2-on" onclick="enviarComando('rooftop/cmd/calor2', 'ON')">Forzar ON</button>
-            <button id="btn-c2-off" onclick="enviarComando('rooftop/cmd/calor2', 'OFF')">Forzar OFF</button>
-        </div>
-    </div>
-
-    <script>
+<script>
+        // CAMBIO: Puerto 8884 para WebSockets seguros (WSS)
         const client = new Paho.MQTT.Client("d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud", 8884, "web_client_" + parseInt(Math.random()*1000));
         
         let ultimasLecturas = { ntc1: "--", ntc2: "--", baja1: "--", baja2: "--" };
@@ -130,21 +13,20 @@
             const topic = message.destinationName;
 
             if (topic === "rooftop/sensor/ntc1") {
-                ultimasLecturas.ntc1 = payload;
                 document.getElementById("ntc1").innerText = payload + " °C";
             } else if (topic === "rooftop/sensor/ntc2") {
-                ultimasLecturas.ntc2 = payload;
                 document.getElementById("ntc2").innerText = payload + " °C";
             } else if (topic === "rooftop/sensor/baja1") {
-                ultimasLecturas.baja1 = payload;
                 document.getElementById("baja1").innerText = payload + " °C";
             } else if (topic === "rooftop/sensor/baja2") {
-                ultimasLecturas.baja2 = payload;
                 document.getElementById("baja2").innerText = payload + " °C";
             } else if (topic === "rooftop/estado/confirmacion") {
                 document.getElementById("txt_conf").innerText = payload;
             } else if (topic === "rooftop/estado/alerta") {
                 document.getElementById("txt_alerta").innerText = payload;
+                if(payload !== "Normal" && payload !== ultimaAlerta) {
+                    registrarError(payload, `${document.getElementById("ntc1").innerText} / ${document.getElementById("ntc2").innerText}`);
+                }
                 ultimaAlerta = payload;
             } else if (topic === "rooftop/estado/presostatos1") {
                 document.getElementById("pres1").innerText = payload;
@@ -176,99 +58,65 @@
             }
         };
 
-        function actualizarTextoEtapas() {
-            let texto = "Apagado";
-            let cFrio = 0;
-            let cCalor = 0;
-
-            if (estadoFrio1 === "ON") cFrio++;
-            if (estadoFrio2 === "ON") cFrio++;
-            if (estadoCalor1 === "ON") cCalor++;
-            if (estadoCalor2 === "ON") cCalor++;
-
-            if (cFrio > 0) {
-                texto = `Frío (${cFrio} ${cFrio === 1 ? 'Etapa' : 'Etapas'})`;
-            } else if (cCalor > 0) {
-                texto = `Calor (${cCalor} ${cCalor === 1 ? 'Etapa' : 'Etapas'})`;
-            }
-
-            document.getElementById("etapas").innerText = texto;
-            document.getElementById("etapas-gen").innerText = texto;
-        }
-
-        function actualizarBadge(elementId, estado) {
-            const el = document.getElementById(elementId);
-            if(el) {
-                el.innerText = (estado === "ON") ? "ENCENDIDO" : "APAGADO";
-                el.className = "badge " + (estado === "ON" ? "badge-on" : "badge-off");
-            }
-        }
-
-        // Resalta visualmente qué botón está seleccionado (activo)
-        function actualizarBotonEstado(btnOnId, btnOffId, estado) {
-            const btnOn = document.getElementById(btnOnId);
-            const btnOff = document.getElementById(btnOffId);
-            if (btnOn && btnOff) {
-                if (estado === "ON") {
-                    btnOn.className = "btn-activo";
-                    btnOff.className = "";
-                } else {
-                    btnOn.className = "";
-                    btnOff.className = "btn-inactivo";
-                }
-            }
-        }
-
-        function renderizarHistorial() {
-            let historial = JSON.parse(localStorage.getItem("rooftop_errores") || "[]");
-            const cuerpo = document.getElementById("cuerpo-tabla-errores");
-            if (historial.length === 0) {
-                cuerpo.innerHTML = `<tr><td colspan="3">Sin errores registrados.</td></tr>`;
-                return;
-            }
-            let html = "";
-            historial.forEach(item => {
-                html += `<tr><td>${item.fecha}</td><td style="color:red; font-weight:bold;">${item.evento}</td><td>${item.temperaturas}</td></tr>`;
-            });
-            cuerpo.innerHTML = html;
-        }
-
-        function limpiarHistorial() {
-            if (confirm("¿Borrar historial?")) {
-                localStorage.removeItem("rooftop_errores");
-                renderizarHistorial();
-            }
-        }
-
+        // Conexión con SSL habilitado
         client.connect({
             useSSL: true,
             userName: "Hernan76",
             password: "Pearljam76",
             onSuccess: () => {
+                console.log("Conectado a HiveMQ via WSS");
                 client.subscribe("rooftop/sensor/#");
                 client.subscribe("rooftop/estado/#");
+            },
+            onFailure: (err) => {
+                console.error("Fallo de conexión MQTT: ", err);
+                alert("Error al conectar con el servidor: " + err.errorMessage);
             }
         });
 
-        function verificarClave() {
-            if (document.getElementById("txt-pass").value === "1234") {
-                document.getElementById("vista-monitoreo").classList.add("hidden");
-                document.getElementById("vista-tecnico").classList.remove("hidden");
-            } else {
-                alert("Clave incorrecta");
-            }
+        function registrarError(evento, temps) {
+            let historial = JSON.parse(localStorage.getItem("rooftop_errores") || "[]");
+            historial.unshift({ fecha: new Date().toLocaleString(), evento: evento, temperaturas: temps });
+            if (historial.length > 20) historial.pop();
+            localStorage.setItem("rooftop_errores", JSON.stringify(historial));
+            renderizarHistorial();
         }
 
-        function volverMonitoreo() {
-            document.getElementById("vista-tecnico").classList.add("hidden");
-            document.getElementById("vista-monitoreo").classList.remove("hidden");
+        // --- FUNCIONES DE SOPORTE (Idénticas a tu original) ---
+        function actualizarTextoEtapas() {
+            let cFrio = (estadoFrio1 === "ON" ? 1:0) + (estadoFrio2 === "ON" ? 1:0);
+            let cCalor = (estadoCalor1 === "ON" ? 1:0) + (estadoCalor2 === "ON" ? 1:0);
+            let texto = (cFrio > 0) ? `Frío (${cFrio} Etapa${cFrio>1?'s':''})` : (cCalor > 0) ? `Calor (${cCalor} Etapa${cCalor>1?'s':''})` : "Apagado";
+            document.getElementById("etapas").innerText = texto;
+            document.getElementById("etapas-gen").innerText = texto;
         }
 
-        function enviarComando(topico, valor) {
-            message = new Paho.MQTT.Message(valor);
-            message.destinationName = topico;
-            client.send(message);
+        function actualizarBadge(id, estado) {
+            const el = document.getElementById(id);
+            if(el) { el.innerText = (estado === "ON") ? "ENCENDIDO" : "APAGADO"; el.className = "badge " + (estado === "ON" ? "badge-on" : "badge-off"); }
         }
+
+        function actualizarBotonEstado(onId, offId, estado) {
+            const btnOn = document.getElementById(onId); const btnOff = document.getElementById(offId);
+            if(btnOn && btnOff) { btnOn.className = (estado === "ON") ? "btn-activo" : ""; btnOff.className = (estado === "OFF") ? "btn-inactivo" : ""; }
+        }
+
+        function renderizarHistorial() {
+            let h = JSON.parse(localStorage.getItem("rooftop_errores") || "[]");
+            const cuerpo = document.getElementById("cuerpo-tabla-errores");
+            cuerpo.innerHTML = h.length ? h.map(i => `<tr><td>${i.fecha}</td><td style="color:red;">${i.evento}</td><td>${i.temperaturas}</td></tr>`).join('') : `<tr><td colspan="3">Sin errores registrados.</td></tr>`;
+        }
+
+        function limpiarHistorial() { if(confirm("¿Borrar?")) { localStorage.removeItem("rooftop_errores"); renderizarHistorial(); } }
+        function verificarClave() { if(document.getElementById("txt-pass").value === "1234") { document.getElementById("vista-monitoreo").classList.add("hidden"); document.getElementById("vista-tecnico").classList.remove("hidden"); } else alert("Clave incorrecta"); }
+        function volverMonitoreo() { document.getElementById("vista-tecnico").classList.add("hidden"); document.getElementById("vista-monitoreo").classList.remove("hidden"); }
+        function enviarComando(top, val) { message = new Paho.MQTT.Message(val); message.destinationName = top; client.send(message); }
     </script>
-</body>
-</html>
+       
+      
+  
+           
+         
+
+          
+        
