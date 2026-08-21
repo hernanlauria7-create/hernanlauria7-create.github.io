@@ -44,9 +44,9 @@
         </div>
     </div>
 
-    <!-- Sección de Acceso Técnico (Contiene Modos y Forzados) -->
+    <!-- Sección de Acceso Técnico (Protegida con contraseña 1234) -->
     <div class="card">
-        <h3 onclick="toggleTecnico()">⚙️ Acceso de Técnicos (Click para abrir)</h3>
+        <h3 onclick="verificarAccesoTecnico()">⚙️ Acceso de Técnicos (Click)</h3>
         
         <div id="panel_tecnico" class="hidden-section">
             
@@ -94,7 +94,6 @@
 </div>
 
 <script>
-    // Configuración MQTT WebSockets (Asegúrate de usar el puerto WS/WSS de tu broker, ej: 8884)
     const broker = "d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud";
     const port = 8884; 
     const clientId = "web_client_" + Math.random().toString(16).substr(2, 8);
@@ -117,6 +116,8 @@
     client.onMessageArrived = message => {
         let topic = message.destinationName;
         let payload = message.payloadString;
+
+        console.log("MQTT Recibido -> [" + topic + "]: " + payload);
 
         if (topic === "rooftop/estado/alerta") {
             let elem = document.getElementById("txt_alerta");
@@ -145,6 +146,7 @@
             useSSL: true,
             onSuccess: () => {
                 console.log("¡Conectado exitosamente!");
+                // Nos suscribimos a todos los estados y sensores necesarios
                 client.subscribe("rooftop/estado/#");
                 client.subscribe("rooftop/sensor/#");
             },
@@ -155,9 +157,14 @@
         });
     }
 
-    function toggleTecnico() {
-        let panel = document.getElementById("panel_tecnico");
-        panel.style.display = (panel.style.display === "block") ? "none" : "block";
+    function verificarAccesoTecnico() {
+        let password = prompt("Ingrese la clave de técnico:");
+        if (password === "1234") {
+            let panel = document.getElementById("panel_tecnico");
+            panel.style.display = (panel.style.display === "block") ? "none" : "block";
+        } else if (password !== null) {
+            alert("Clave incorrecta.");
+        }
     }
 
     function cambiarModo(modo) {
