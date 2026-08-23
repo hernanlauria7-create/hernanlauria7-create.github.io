@@ -227,11 +227,34 @@
         }
 
         function setManual(componente, valor) {
-            if (componente === 'vent') manualVent = valor;
-            if (componente === 'f1') manualF1 = valor;
-            if (componente === 'f2') manualF2 = valor;
-            if (componente === 'c1') manualC1 = valor;
-            if (componente === 'c2') manualC2 = valor;
+            if (componente === 'vent') { 
+                manualVent = valor; 
+                actualizarBotonEstado("btn-vent-on", "btn-vent-off", valor ? "ON" : "OFF"); 
+            }
+            if (componente === 'f1') { 
+                manualF1 = valor; 
+                estadoFrio1 = valor ? "ON" : "OFF";
+                actualizarBotonEstado("btn-f1-on", "btn-f1-off", valor ? "ON" : "OFF"); 
+                actualizarTextoEtapas();
+            }
+            if (componente === 'f2') { 
+                manualF2 = valor; 
+                estadoFrio2 = valor ? "ON" : "OFF";
+                actualizarBotonEstado("btn-f2-on", "btn-f2-off", valor ? "ON" : "OFF"); 
+                actualizarTextoEtapas();
+            }
+            if (componente === 'c1') { 
+                manualC1 = valor; 
+                estadoCalor1 = valor ? "ON" : "OFF";
+                actualizarBotonEstado("btn-c1-on", "btn-c1-off", valor ? "ON" : "OFF"); 
+                actualizarTextoEtapas();
+            }
+            if (componente === 'c2') { 
+                manualC2 = valor; 
+                estadoCalor2 = valor ? "ON" : "OFF";
+                actualizarBotonEstado("btn-c2-on", "btn-c2-off", valor ? "ON" : "OFF"); 
+                actualizarTextoEtapas();
+            }
             sincronizarComandos();
         }
 
