@@ -31,9 +31,11 @@
             <h3>Temperaturas Generales</h3>
             <p>Retorno (NTC 1): <strong id="ntc1">---</strong></p>
             <p>Evaporador (NTC 2): <strong id="ntc2">---</strong></p>
+            <p>Set Point Deseado: <strong id="txt_setpoint">25 °C</strong></p>
         </div>
         <div class="card">
             <h3>Estado del Sistema</h3>
+            <p>Modo Actual: <strong id="txt_modo">Remoto</strong></p>
             <p>Alerta: <strong id="txt_alerta">Normal</strong></p>
             <p>Ventilación Conf.: <strong id="txt_conf">---</strong></p>
             <p>Modo / Etapas: <strong id="etapas-gen">Apagado</strong></p>
@@ -61,6 +63,15 @@
             <p>Presostato Baja C2: <span id="ind_baja2_ok" class="badge badge-off">OFF</span></p>
             <p>Presostato Alta C2: <span id="ind_alta2_ok" class="badge badge-off">OFF</span></p>
             <p>Conf. Ventilación: <span id="ind_vent_conf" class="badge badge-off">OFF</span></p>
+        </div>
+
+        <!-- SELECCIÓN DE MODO Y TEMPERATURA -->
+        <div class="card">
+            <h3>Modo de Operación</h3>
+            <button id="btn-modo-remoto" onclick="enviarComando('rooftop/cmd/modo', 'REMOTO')">Remoto</button>
+            <button id="btn-modo-manual" onclick="enviarComando('rooftop/cmd/modo', 'MANUAL')">Manual</button>
+            <button id="btn-modo-auto" onclick="enviarComando('rooftop/cmd/modo', 'AUTOMATICO')">Automático</button>
+            <p style="margin-top:10px; font-size:14px;">Set Point (Mantener): <strong id="label-setpoint">25</strong> °C</p>
         </div>
 
         <div class="card-wide">
@@ -130,7 +141,7 @@
             const payload = message.payloadString;
             const topic = message.destinationName;
 
-            // Rastreo detallado en la consola del navegador (F12 -> Console)
+            // Rastreo en la consola del navegador
             console.log("MQTT Recibido -> Tópico:", topic, "| Valor:", payload);
 
             if (topic === "rooftop/sensor/ntc1") {
@@ -144,7 +155,15 @@
             } else if (topic === "rooftop/estado/alerta") {
                 document.getElementById("txt_alerta").innerText = payload;
             } 
-            // NUEVOS TÓPICOS DE PRESOSTATOS Y VENTILACIÓN
+            // MODO Y SETPOINT DE TEMPERATURA
+            else if (topic === "rooftop/estado/modo") {
+                document.getElementById("txt_modo").innerText = payload;
+                actualizarBotonModo(payload);
+            } else if (topic === "rooftop/estado/setpoint") {
+                document.getElementById("txt_setpoint").innerText = payload + " °C";
+                document.getElementById("label-setpoint").innerText = payload;
+            }
+            // PRESOSTATOS Y VENTILACIÓN
             else if (topic === "rooftop/estado/baja1_ok") {
                 actualizarBadge("ind_baja1_ok", payload);
             } else if (topic === "rooftop/estado/alta1_ok") {
@@ -223,6 +242,18 @@
                     btnOn.className = "";
                     btnOff.className = "btn-inactivo";
                 }
+            }
+        }
+
+        function actualizarBotonModo(modoActual) {
+            const btnRemoto = document.getElementById("btn-modo-remoto");
+            const btnManual = document.getElementById("btn-modo-manual");
+            const btnAuto = document.getElementById("btn-modo-auto");
+
+            if(btnRemoto && btnManual && btnAuto) {
+                btnRemoto.className = (modoActual === "REMOTO") ? "btn-activo" : "";
+                btnManual.className = (modoActual === "MANUAL") ? "btn-activo" : "";
+                btnAuto.className = (modoActual === "AUTOMATICO") ? "btn-activo" : "";
             }
         }
 
