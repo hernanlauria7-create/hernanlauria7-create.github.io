@@ -34,7 +34,6 @@
         <div class="card">
             <h3>Temperaturas Generales</h3>
             <p>Retorno: <strong id="ntc1">---</strong></p>
-            <p>Setpoint Actual: <strong id="lbl-setpoint-mon">23</strong> °C</p>
             <p>Evaporador (NTC 2): <strong id="ntc2">---</strong></p>
         </div>
         <div class="card">
@@ -58,7 +57,7 @@
         <div class="card">
             <h3>Modo de Operación</h3>
             <select id="select-modo" onchange="cambiarModoOperacion()">
-                <option value="0">Remoto Físico (Bornera)</option>
+                <option value="0" selected>Remoto Físico (Bornera)</option>
                 <option value="1">Manual / Forzado Web</option>
                 <option value="2">Automático (Setpoint)</option>
             </select>
@@ -160,11 +159,13 @@
     <script>
         const client = new Paho.MQTT.Client("d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud", 8884, "web_client_" + parseInt(Math.random()*1000));
         
-        // Variables locales para el estado manual actual que se envían al ESP
         let manualVent = 0, manualF1 = 0, manualF2 = 0, manualC1 = 0, manualC2 = 0;
         let estadoFrio1 = "OFF", estadoFrio2 = "OFF", estadoCalor1 = "OFF", estadoCalor2 = "OFF";
 
-        document.addEventListener("DOMContentLoaded", () => { renderizarHistorial(); });
+        document.addEventListener("DOMContentLoaded", () => { 
+            renderizarHistorial(); 
+            sincronizarComandos(); // Asegura enviar el modo Remoto por defecto al conectar
+        });
 
         client.onMessageArrived = (message) => {
             const payload = message.payloadString;
@@ -208,16 +209,16 @@
             const seccionAuto = document.getElementById("seccion-auto");
             const avisoProtecciones = document.getElementById("aviso-sin-protecciones");
             
-            if (modo === "1") { // Manual -> Resetea variables locales a 0 al entrar por seguridad
+            if (modo === "1") { 
                 manualVent = 0; manualF1 = 0; manualF2 = 0; manualC1 = 0; manualC2 = 0;
                 seccionForzado.classList.remove("hidden");
                 seccionAuto.classList.add("hidden");
                 avisoProtecciones.classList.remove("hidden");
-            } else if (modo === "2") { // Automático
+            } else if (modo === "2") { 
                 seccionForzado.classList.add("hidden");
                 seccionAuto.classList.remove("hidden");
                 avisoProtecciones.classList.add("hidden");
-            } else { // Remoto Físico (0)
+            } else { 
                 seccionForzado.classList.add("hidden");
                 seccionAuto.classList.add("hidden");
                 avisoProtecciones.classList.add("hidden");
@@ -236,7 +237,6 @@
 
         function actualizarSetpointVisual(val) {
             document.getElementById("lbl-setpoint").innerText = val;
-            document.getElementById("lbl-setpoint-mon").innerText = val;
         }
 
         function sincronizarComandos() {
@@ -244,7 +244,6 @@
             const clima = document.getElementById("select-clima").value;
             const setpoint = document.getElementById("range-setpoint").value;
 
-            // Envía la trama completa unificada que el ESP1 interpreta por MQTT/Bridge
             const payloadCompleto = `${modo},${clima},${setpoint},${manualVent},${manualF1},${manualF2},${manualC1},${manualC2}`;
             enviarComando("rooftop/cmd/paquete_total", payloadCompleto);
         }
