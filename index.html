@@ -130,6 +130,9 @@
             const payload = message.payloadString;
             const topic = message.destinationName;
 
+            // Rastreo detallado en la consola del navegador (F12 -> Console)
+            console.log("MQTT Recibido -> Tópico:", topic, "| Valor:", payload);
+
             if (topic === "rooftop/sensor/ntc1") {
                 document.getElementById("ntc1").innerText = payload + " °C";
             } else if (topic === "rooftop/sensor/ntc2") {
