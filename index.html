@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8"> 
+    <meta charset="UTF-8">
     <title>Monitoreo y Control Rooftop</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
@@ -15,11 +15,12 @@
         .btn-inactivo { background-color: #dc3545 !important; color: white !important; border-color: #bd2130 !important; }
         .hidden { display: none; }
         input[type="password"] { padding: 8px; font-size: 14px; width: 150px; }
-        select { padding: 8px; font-size: 14px; border-radius: 5px; width: 100%; max-width: 200px; }
+        select { padding: 8px; font-size: 14px; border-radius: 5px; width: 100%; max-width: 220px; }
         input[type="range"] { width: 100%; cursor: pointer; }
         .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; background: #6c757d; }
         .badge-on { background-color: #28a745; }
         .badge-off { background-color: #dc3545; }
+        .badge-warning { background-color: #ffc107; color: #856404; border: 1px solid #ffeeba; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
         th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
         th { background-color: #f2f2f2; }
@@ -57,20 +58,25 @@
         <div class="card">
             <h3>Modo de Operación</h3>
             <select id="select-modo" onchange="actualizarInterfazModo()">
-                <option value="0">Automático</option>
-                <option value="1">Manual / Forzado</option>
+                <option value="0">Remoto Físico (Bornera)</option>
+                <option value="1">Manual / Forzado Web</option>
+                <option value="2">Automático (Setpoint)</option>
             </select>
+            <!-- Leyenda de advertencia para el modo manual -->
+            <div id="aviso-sin-protecciones" class="hidden" style="margin-top: 10px;">
+                <span class="badge badge-warning" style="width: 100%; box-sizing: border-box; padding: 8px;">⚠️ SIN PROTECCIONES (Modo Forzado)</span>
+            </div>
         </div>
 
-        <!-- CONFIGURACIÓN MODO AUTOMÁTICO (Frío/Calor + Potenciómetro) -->
-        <div id="seccion-auto" class="card">
+        <!-- CONFIGURACIÓN MODO AUTOMÁTICO -->
+        <div id="seccion-auto" class="card hidden">
             <h3>Ajustes Automáticos</h3>
             <p>Función:</p>
             <select id="select-clima" onchange="enviarParametrosAuto()">
                 <option value="FRIO">Frío</option>
                 <option value="CALOR">Calor</option>
             </select>
-            <p style="margin-top:15px;">Temperatura Deseada (Setpoint): <strong id="lbl-setpoint">23</strong> °C</p>
+            <p style="margin-top:15px;">Temperatura Deseada: <strong id="lbl-setpoint">23</strong> °C</p>
             <input type="range" id="range-setpoint" min="22" max="25" step="0.5" value="23" oninput="actualizarSetpointVisual(this.value)" onchange="enviarParametrosAuto()">
         </div>
 
@@ -102,7 +108,6 @@
             <button onclick="limpiarHistorial()" style="background:#dc3545; color:white; margin-top:10px;">Limpiar Historial</button>
         </div>
 
-        <!-- CONTENEDOR FLEX PARA ENTRADAS Y SALIDAS -->
         <div class="flex-container">
             <div class="card" style="margin:0;">
                 <h3>Estado de Entradas / Demandas</h3>
@@ -123,7 +128,7 @@
             </div>
         </div>
 
-        <!-- CONTROLES DE FORZADO (VISIBLE SOLO EN MANUAL) -->
+        <!-- CONTROLES DE FORZADO (VISIBLE SOLO EN MODO MANUAL = 1) -->
         <div id="seccion-forzado" class="hidden">
             <div class="card">
                 <h3>Control Ventilación</h3>
@@ -155,7 +160,6 @@
 
     <script>
         const client = new Paho.MQTT.Client("d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud", 8884, "web_client_" + parseInt(Math.random()*1000));
-        
         let estadoFrio1 = "OFF", estadoFrio2 = "OFF", estadoCalor1 = "OFF", estadoCalor2 = "OFF";
 
         document.addEventListener("DOMContentLoaded", () => { renderizarHistorial(); });
@@ -164,53 +168,35 @@
             const payload = message.payloadString;
             const topic = message.destinationName;
 
-            if (topic === "rooftop/sensor/ntc1") {
-                document.getElementById("ntc1").innerText = payload + " °C";
-            } else if (topic === "rooftop/sensor/ntc2") {
-                document.getElementById("ntc2").innerText = payload + " °C";
-            } else if (topic === "rooftop/sensor/baja1") {
-                document.getElementById("baja1").innerText = payload + " °C";
-            } else if (topic === "rooftop/sensor/baja2") {
-                document.getElementById("baja2").innerText = payload + " °C";
-            } else if (topic === "rooftop/estado/alerta") {
-                document.getElementById("txt_alerta").innerText = payload;
-            } 
-            else if (topic === "rooftop/estado/baja1_ok") { actualizarBadge("ind_baja1_ok", payload); }
-            else if (topic === "rooftop/estado/alta1_ok") { actualizarBadge("ind_alta1_ok", payload); }
-            else if (topic === "rooftop/estado/baja2_ok") { actualizarBadge("ind_baja2_ok", payload); }
-            else if (topic === "rooftop/estado/alta2_ok") { actualizarBadge("ind_alta2_ok", payload); }
+            if (topic === "rooftop/sensor/ntc1") document.getElementById("ntc1").innerText = payload + " °C";
+            else if (topic === "rooftop/sensor/ntc2") document.getElementById("ntc2").innerText = payload + " °C";
+            else if (topic === "rooftop/sensor/baja1") document.getElementById("baja1").innerText = payload + " °C";
+            else if (topic === "rooftop/sensor/baja2") document.getElementById("baja2").innerText = payload + " °C";
+            else if (topic === "rooftop/estado/alerta") document.getElementById("txt_alerta").innerText = payload;
+            else if (topic === "rooftop/estado/baja1_ok") actualizarBadge("ind_baja1_ok", payload);
+            else if (topic === "rooftop/estado/alta1_ok") actualizarBadge("ind_alta1_ok", payload);
+            else if (topic === "rooftop/estado/baja2_ok") actualizarBadge("ind_baja2_ok", payload);
+            else if (topic === "rooftop/estado/alta2_ok") actualizarBadge("ind_alta2_ok", payload);
             else if (topic === "rooftop/estado/vent_conf") {
                 actualizarBadge("ind_vent_conf", payload);
                 document.getElementById("txt_conf").innerText = (payload === "ON") ? "Confirmado" : "Sin confirmar";
             } 
-            else if (topic === "rooftop/estado/in_ventilador") { actualizarBadge("ind-in-vent", payload); }
-            else if (topic === "rooftop/estado/in_frio1") { actualizarBadge("ind-in-f1", payload); }
-            else if (topic === "rooftop/estado/in_frio2") { actualizarBadge("ind-in-f2", payload); }
-            else if (topic === "rooftop/estado/in_calor1") { actualizarBadge("ind-in-c1", payload); }
-            else if (topic === "rooftop/estado/in_calor2") { actualizarBadge("ind-in-c2", payload); }
+            else if (topic === "rooftop/estado/in_ventilador") actualizarBadge("ind-in-vent", payload);
+            else if (topic === "rooftop/estado/in_frio1") actualizarBadge("ind-in-f1", payload);
+            else if (topic === "rooftop/estado/in_frio2") actualizarBadge("ind-in-f2", payload);
+            else if (topic === "rooftop/estado/in_calor1") actualizarBadge("ind-in-c1", payload);
+            else if (topic === "rooftop/estado/in_calor2") actualizarBadge("ind-in-c2", payload);
             else if (topic === "rooftop/estado/ventilador") {
                 actualizarBadge("ind-vent", payload);
                 actualizarBotonEstado("btn-vent-on", "btn-vent-off", payload);
             } else if (topic === "rooftop/estado/frio1") {
-                estadoFrio1 = payload;
-                actualizarBadge("ind-f1", payload);
-                actualizarBotonEstado("btn-f1-on", "btn-f1-off", payload);
-                actualizarTextoEtapas();
+                estadoFrio1 = payload; actualizarBadge("ind-f1", payload); actualizarBotonEstado("btn-f1-on", "btn-f1-off", payload); actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/frio2") {
-                estadoFrio2 = payload;
-                actualizarBadge("ind-f2", payload);
-                actualizarBotonEstado("btn-f2-on", "btn-f2-off", payload);
-                actualizarTextoEtapas();
+                estadoFrio2 = payload; actualizarBadge("ind-f2", payload); actualizarBotonEstado("btn-f2-on", "btn-f2-off", payload); actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/calor1") {
-                estadoCalor1 = payload;
-                actualizarBadge("ind-c1", payload);
-                actualizarBotonEstado("btn-c1-on", "btn-c1-off", payload);
-                actualizarTextoEtapas();
+                estadoCalor1 = payload; actualizarBadge("ind-c1", payload); actualizarBotonEstado("btn-c1-on", "btn-c1-off", payload); actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/calor2") {
-                estadoCalor2 = payload;
-                actualizarBadge("ind-c2", payload);
-                actualizarBotonEstado("btn-c2-on", "btn-c2-off", payload);
-                actualizarTextoEtapas();
+                estadoCalor2 = payload; actualizarBadge("ind-c2", payload); actualizarBotonEstado("btn-c2-on", "btn-c2-off", payload); actualizarTextoEtapas();
             }
         };
 
@@ -218,13 +204,20 @@
             const modo = document.getElementById("select-modo").value;
             const seccionForzado = document.getElementById("seccion-forzado");
             const seccionAuto = document.getElementById("seccion-auto");
+            const avisoProtecciones = document.getElementById("aviso-sin-protecciones");
             
-            if (modo === "1") {
+            if (modo === "1") { // Manual
                 seccionForzado.classList.remove("hidden");
                 seccionAuto.classList.add("hidden");
-            } else {
+                avisoProtecciones.classList.remove("hidden");
+            } else if (modo === "2") { // Automático
                 seccionForzado.classList.add("hidden");
                 seccionAuto.classList.remove("hidden");
+                avisoProtecciones.classList.add("hidden");
+            } else { // Remoto Físico (0)
+                seccionForzado.classList.add("hidden");
+                seccionAuto.classList.add("hidden");
+                avisoProtecciones.classList.add("hidden");
             }
             enviarComando("rooftop/cmd/modo", modo);
         }
@@ -235,7 +228,7 @@
         }
 
         function enviarParametrosAuto() {
-            const clima = document.getElementById("select-clima").value; // "FRIO" o "CALOR"
+            const clima = document.getElementById("select-clima").value;
             const setpoint = document.getElementById("range-setpoint").value;
             enviarComando("rooftop/cmd/config_auto", `${clima},${setpoint}`);
         }
@@ -267,23 +260,15 @@
             const btnOn = document.getElementById(btnOnId);
             const btnOff = document.getElementById(btnOffId);
             if (btnOn && btnOff) {
-                if (estado === "ON") {
-                    btnOn.className = "btn-activo";
-                    btnOff.className = "";
-                } else {
-                    btnOn.className = "";
-                    btnOff.className = "btn-inactivo";
-                }
+                if (estado === "ON") { btnOn.className = "btn-activo"; btnOff.className = ""; }
+                else { btnOn.className = ""; btnOff.className = "btn-inactivo"; }
             }
         }
 
         function renderizarHistorial() {
             let historial = JSON.parse(localStorage.getItem("rooftop_errores") || "[]");
             const cuerpo = document.getElementById("cuerpo-tabla-errores");
-            if (historial.length === 0) {
-                cuerpo.innerHTML = `<tr><td colspan="3">Sin errores registrados.</td></tr>`;
-                return;
-            }
+            if (historial.length === 0) { cuerpo.innerHTML = `<tr><td colspan="3">Sin errores registrados.</td></tr>`; return; }
             let html = "";
             historial.forEach(item => {
                 html += `<tr><td>${item.fecha}</td><td style="color:red; font-weight:bold;">${item.evento}</td><td>${item.temperaturas}</td></tr>`;
@@ -292,29 +277,19 @@
         }
 
         function limpiarHistorial() {
-            if (confirm("¿Borrar historial?")) {
-                localStorage.removeItem("rooftop_errores");
-                renderizarHistorial();
-            }
+            if (confirm("¿Borrar historial?")) { localStorage.removeItem("rooftop_errores"); renderizarHistorial(); }
         }
 
         client.connect({
-            useSSL: true,
-            userName: "Hernan76",
-            password: "Pearljam76",
-            onSuccess: () => {
-                client.subscribe("rooftop/sensor/#");
-                client.subscribe("rooftop/estado/#");
-            }
+            useSSL: true, userName: "Hernan76", password: "Pearljam76",
+            onSuccess: () => { client.subscribe("rooftop/sensor/#"); client.subscribe("rooftop/estado/#"); }
         });
 
         function verificarClave() {
             if (document.getElementById("txt-pass").value === "1234") {
                 document.getElementById("vista-monitoreo").classList.add("hidden");
                 document.getElementById("vista-tecnico").classList.remove("hidden");
-            } else {
-                alert("Clave incorrecta");
-            }
+            } else { alert("Clave incorrecta"); }
         }
 
         function volverMonitoreo() {
