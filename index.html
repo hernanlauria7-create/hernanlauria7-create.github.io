@@ -31,7 +31,7 @@
             <h3>Temperaturas Generales</h3>
             <p>Retorno (NTC 1): <strong id="ntc1">---</strong></p>
             <p>Evaporador (NTC 2): <strong id="ntc2">---</strong></p>
-            <p>Set Point Deseado: <strong id="txt_setpoint">25 °C</strong></p>
+            <p id="bloque-setpoint" class="hidden">Set Point Automático: <strong id="txt_setpoint">25 °C</strong></p>
         </div>
         <div class="card">
             <h3>Estado del Sistema</h3>
@@ -71,7 +71,7 @@
             <button id="btn-modo-remoto" onclick="enviarComando('rooftop/cmd/modo', 'REMOTO')">Remoto</button>
             <button id="btn-modo-manual" onclick="enviarComando('rooftop/cmd/modo', 'MANUAL')">Manual</button>
             <button id="btn-modo-auto" onclick="enviarComando('rooftop/cmd/modo', 'AUTOMATICO')">Automático</button>
-            <p style="margin-top:10px; font-size:14px;">Set Point (Mantener): <strong id="label-setpoint">25</strong> °C</p>
+            <p id="panel-temp-auto" class="hidden" style="margin-top:10px; font-size:14px; color:#28a745; font-weight:bold;">Manteniendo Objetivo: 25 °C</p>
         </div>
 
         <div class="card-wide">
@@ -98,50 +98,54 @@
             <p>Calor 2: <span id="ind-c2" class="badge badge-off">APAGADO</span></p>
         </div>
 
-        <!-- CONTROLES CON BOTONES MARCADOS DINÁMICAMENTE -->
-        <div class="card">
-            <h3>Control Ventilación</h3>
-            <button id="btn-vent-on" onclick="enviarComando('rooftop/cmd/ventilador', 'ON')">Prender</button>
-            <button id="btn-vent-off" onclick="enviarComando('rooftop/cmd/ventilador', 'OFF')">Apagar</button>
-        </div>
+        <!-- CONTROLES DE FORZADO (SOLO VISIBLES EN MODO MANUAL) -->
+        <div id="panel-controles-manuales" class="hidden">
+            <div class="card">
+                <h3>Control Ventilación (Manual)</h3>
+                <button id="btn-vent-on" onclick="enviarComando('rooftop/cmd/ventilador', 'ON')">Prender</button>
+                <button id="btn-vent-off" onclick="enviarComando('rooftop/cmd/ventilador', 'OFF')">Apagar</button>
+            </div>
 
-        <div class="card">
-            <h3>Control Frío Etapa 1</h3>
-            <button id="btn-f1-on" onclick="enviarComando('rooftop/cmd/frio1', 'ON')">Forzar ON</button>
-            <button id="btn-f1-off" onclick="enviarComando('rooftop/cmd/frio1', 'OFF')">Forzar OFF</button>
-        </div>
+            <div class="card">
+                <h3>Control Frío Etapa 1 (Manual)</h3>
+                <button id="btn-f1-on" onclick="enviarComando('rooftop/cmd/frio1', 'ON')">Forzar ON</button>
+                <button id="btn-f1-off" onclick="enviarComando('rooftop/cmd/frio1', 'OFF')">Forzar OFF</button>
+            </div>
 
-        <div class="card">
-            <h3>Control Frío Etapa 2</h3>
-            <button id="btn-f2-on" onclick="enviarComando('rooftop/cmd/frio2', 'ON')">Forzar ON</button>
-            <button id="btn-f2-off" onclick="enviarComando('rooftop/cmd/frio2', 'OFF')">Forzar OFF</button>
-        </div>
+            <div class="card">
+                <h3>Control Frío Etapa 2 (Manual)</h3>
+                <button id="btn-f2-on" onclick="enviarComando('rooftop/cmd/frio2', 'ON')">Forzar ON</button>
+                <button id="btn-f2-off" onclick="enviarComando('rooftop/cmd/frio2', 'OFF')">Forzar OFF</button>
+            </div>
 
-        <div class="card">
-            <h3>Control Calefacción Etapa 1</h3>
-            <button id="btn-c1-on" onclick="enviarComando('rooftop/cmd/calor1', 'ON')">Forzar ON</button>
-            <button id="btn-c1-off" onclick="enviarComando('rooftop/cmd/calor1', 'OFF')">Forzar OFF</button>
-        </div>
+            <div class="card">
+                <h3>Control Calefacción Etapa 1 (Manual)</h3>
+                <button id="btn-c1-on" onclick="enviarComando('rooftop/cmd/calor1', 'ON')">Forzar ON</button>
+                <button id="btn-c1-off" onclick="enviarComando('rooftop/cmd/calor1', 'OFF')">Forzar OFF</button>
+            </div>
 
-        <div class="card">
-            <h3>Control Calefacción Etapa 2</h3>
-            <button id="btn-c2-on" onclick="enviarComando('rooftop/cmd/calor2', 'ON')">Forzar ON</button>
-            <button id="btn-c2-off" onclick="enviarComando('rooftop/cmd/calor2', 'OFF')">Forzar OFF</button>
+            <div class="card">
+                <h3>Control Calefacción Etapa 2 (Manual)</h3>
+                <button id="btn-c2-on" onclick="enviarComando('rooftop/cmd/calor2', 'ON')">Forzar ON</button>
+                <button id="btn-c2-off" onclick="enviarComando('rooftop/cmd/calor2', 'OFF')">Forzar OFF</button>
+            </div>
         </div>
     </div>
 
     <script>
         const client = new Paho.MQTT.Client("d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud", 8884, "web_client_" + parseInt(Math.random()*1000));
         
-        let estadoFrio1 = "OFF", estadoFrio2 = "OFF", estadoCalor1 = "OFF", estadoCalor2 = "OFF";
+        let modoActualSistema = "REMOTO"; // Por defecto arranca en remoto
 
-        document.addEventListener("DOMContentLoaded", () => { renderizarHistorial(); });
+        document.addEventListener("DOMContentLoaded", () => { 
+            renderizarHistorial(); 
+            actualizarInterfazModo("REMOTO"); // Estado inicial por defecto
+        });
 
         client.onMessageArrived = (message) => {
             const payload = message.payloadString;
             const topic = message.destinationName;
 
-            // Rastreo en la consola del navegador
             console.log("MQTT Recibido -> Tópico:", topic, "| Valor:", payload);
 
             if (topic === "rooftop/sensor/ntc1") {
@@ -155,14 +159,12 @@
             } else if (topic === "rooftop/estado/alerta") {
                 document.getElementById("txt_alerta").innerText = payload;
             } 
-            // MODO Y SETPOINT DE TEMPERATURA
+            // MODO DE OPERACIÓN
             else if (topic === "rooftop/estado/modo") {
+                modoActualSistema = payload;
                 document.getElementById("txt_modo").innerText = payload;
-                actualizarBotonModo(payload);
-            } else if (topic === "rooftop/estado/setpoint") {
-                document.getElementById("txt_setpoint").innerText = payload + " °C";
-                document.getElementById("label-setpoint").innerText = payload;
-            }
+                actualizarInterfazModo(payload);
+            } 
             // PRESOSTATOS Y VENTILACIÓN
             else if (topic === "rooftop/estado/baja1_ok") {
                 actualizarBadge("ind_baja1_ok", payload);
@@ -176,43 +178,40 @@
                 actualizarBadge("ind_vent_conf", payload);
                 document.getElementById("txt_conf").innerText = (payload === "ON") ? "Confirmado" : "Sin confirmar";
             } 
-            // ESTADOS DE SALIDAS
+            // ESTADOS DE SALIDAS (Actualizan insignias y recalculan etapas inmediatamente)
             else if (topic === "rooftop/estado/ventilador") {
                 actualizarBadge("ind-vent", payload);
                 actualizarBotonEstado("btn-vent-on", "btn-vent-off", payload);
             } else if (topic === "rooftop/estado/frio1") {
-                estadoFrio1 = payload;
                 actualizarBadge("ind-f1", payload);
                 actualizarBotonEstado("btn-f1-on", "btn-f1-off", payload);
                 actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/frio2") {
-                estadoFrio2 = payload;
                 actualizarBadge("ind-f2", payload);
                 actualizarBotonEstado("btn-f2-on", "btn-f2-off", payload);
                 actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/calor1") {
-                estadoCalor1 = payload;
                 actualizarBadge("ind-c1", payload);
                 actualizarBotonEstado("btn-c1-on", "btn-c1-off", payload);
                 actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/calor2") {
-                estadoCalor2 = payload;
                 actualizarBadge("ind-c2", payload);
                 actualizarBotonEstado("btn-c2-on", "btn-c2-off", payload);
                 actualizarTextoEtapas();
             }
         };
 
+        // Función robusta que lee directamente las insignias activas en pantalla
         function actualizarTextoEtapas() {
-            let texto = "Apagado";
             let cFrio = 0;
             let cCalor = 0;
 
-            if (estadoFrio1 === "ON") cFrio++;
-            if (estadoFrio2 === "ON") cFrio++;
-            if (estadoCalor1 === "ON") cCalor++;
-            if (estadoCalor2 === "ON") cCalor++;
+            if (document.getElementById("ind-f1").classList.contains("badge-on")) cFrio++;
+            if (document.getElementById("ind-f2").classList.contains("badge-on")) cFrio++;
+            if (document.getElementById("ind-c1").classList.contains("badge-on")) cCalor++;
+            if (document.getElementById("ind-c2").classList.contains("badge-on")) cCalor++;
 
+            let texto = "Apagado";
             if (cFrio > 0) {
                 texto = `Frío (${cFrio} ${cFrio === 1 ? 'Etapa' : 'Etapas'})`;
             } else if (cCalor > 0) {
@@ -245,15 +244,34 @@
             }
         }
 
-        function actualizarBotonModo(modoActual) {
+        function actualizarInterfazModo(modoActual) {
             const btnRemoto = document.getElementById("btn-modo-remoto");
             const btnManual = document.getElementById("btn-modo-manual");
             const btnAuto = document.getElementById("btn-modo-auto");
+            const panelControles = document.getElementById("panel-controles-manuales");
+            const panelTempAuto = document.getElementById("panel-temp-auto");
+            const bloqueSetpointMonitoreo = document.getElementById("bloque-setpoint");
 
             if(btnRemoto && btnManual && btnAuto) {
                 btnRemoto.className = (modoActual === "REMOTO") ? "btn-activo" : "";
                 btnManual.className = (modoActual === "MANUAL") ? "btn-activo" : "";
                 btnAuto.className = (modoActual === "AUTOMATICO") ? "btn-activo" : "";
+            }
+
+            // Mostrar u ocultar controles de forzado solo si es MANUAL
+            if (modoActual === "MANUAL") {
+                panelControles.classList.remove("hidden");
+            } else {
+                panelControles.classList.add("hidden");
+            }
+
+            // Mostrar u ocultar información de temperatura de 25°C solo si es AUTOMATICO
+            if (modoActual === "AUTOMATICO") {
+                panelTempAuto.classList.remove("hidden");
+                bloqueSetpointMonitoreo.classList.remove("hidden");
+            } else {
+                panelTempAuto.classList.add("hidden");
+                bloqueSetpointMonitoreo.classList.add("hidden");
             }
         }
 
@@ -309,4 +327,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
