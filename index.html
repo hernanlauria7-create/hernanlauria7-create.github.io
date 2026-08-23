@@ -57,12 +57,11 @@
 
         <div class="card">
             <h3>Modo de Operación</h3>
-            <select id="select-modo" onchange="actualizarInterfazModo()">
+            <select id="select-modo" onchange="cambiarModoOperacion()">
                 <option value="0">Remoto Físico (Bornera)</option>
                 <option value="1">Manual / Forzado Web</option>
                 <option value="2">Automático (Setpoint)</option>
             </select>
-            <!-- Leyenda de advertencia para el modo manual -->
             <div id="aviso-sin-protecciones" class="hidden" style="margin-top: 10px;">
                 <span class="badge badge-warning" style="width: 100%; box-sizing: border-box; padding: 8px;">⚠️ SIN PROTECCIONES (Modo Forzado)</span>
             </div>
@@ -72,12 +71,12 @@
         <div id="seccion-auto" class="card hidden">
             <h3>Ajustes Automáticos</h3>
             <p>Función:</p>
-            <select id="select-clima" onchange="enviarParametrosAuto()">
+            <select id="select-clima" onchange="sincronizarComandos()">
                 <option value="FRIO">Frío</option>
                 <option value="CALOR">Calor</option>
             </select>
             <p style="margin-top:15px;">Temperatura Deseada: <strong id="lbl-setpoint">23</strong> °C</p>
-            <input type="range" id="range-setpoint" min="22" max="25" step="0.5" value="23" oninput="actualizarSetpointVisual(this.value)" onchange="enviarParametrosAuto()">
+            <input type="range" id="range-setpoint" min="22" max="25" step="0.5" value="23" oninput="actualizarSetpointVisual(this.value)" onchange="sincronizarComandos()">
         </div>
 
         <div class="card">
@@ -132,34 +131,37 @@
         <div id="seccion-forzado" class="hidden">
             <div class="card">
                 <h3>Control Ventilación</h3>
-                <button id="btn-vent-on" onclick="enviarComando('rooftop/cmd/ventilador', 'ON')">Prender</button>
-                <button id="btn-vent-off" onclick="enviarComando('rooftop/cmd/ventilador', 'OFF')">Apagar</button>
+                <button id="btn-vent-on" onclick="setManual('vent', 1)">Prender</button>
+                <button id="btn-vent-off" onclick="setManual('vent', 0)">Apagar</button>
             </div>
             <div class="card">
                 <h3>Control Frío Etapa 1</h3>
-                <button id="btn-f1-on" onclick="enviarComando('rooftop/cmd/frio1', 'ON')">Forzar ON</button>
-                <button id="btn-f1-off" onclick="enviarComando('rooftop/cmd/frio1', 'OFF')">Forzar OFF</button>
+                <button id="btn-f1-on" onclick="setManual('f1', 1)">Forzar ON</button>
+                <button id="btn-f1-off" onclick="setManual('f1', 0)">Forzar OFF</button>
             </div>
             <div class="card">
                 <h3>Control Frío Etapa 2</h3>
-                <button id="btn-f2-on" onclick="enviarComando('rooftop/cmd/frio2', 'ON')">Forzar ON</button>
-                <button id="btn-f2-off" onclick="enviarComando('rooftop/cmd/frio2', 'OFF')">Forzar OFF</button>
+                <button id="btn-f2-on" onclick="setManual('f2', 1)">Forzar ON</button>
+                <button id="btn-f2-off" onclick="setManual('f2', 0)">Forzar OFF</button>
             </div>
             <div class="card">
                 <h3>Control Calefacción Etapa 1</h3>
-                <button id="btn-c1-on" onclick="enviarComando('rooftop/cmd/calor1', 'ON')">Forzar ON</button>
-                <button id="btn-c1-off" onclick="enviarComando('rooftop/cmd/calor1', 'OFF')">Forzar OFF</button>
+                <button id="btn-c1-on" onclick="setManual('c1', 1)">Forzar ON</button>
+                <button id="btn-c1-off" onclick="setManual('c1', 0)">Forzar OFF</button>
             </div>
             <div class="card">
                 <h3>Control Calefacción Etapa 2</h3>
-                <button id="btn-c2-on" onclick="enviarComando('rooftop/cmd/calor2', 'ON')">Forzar ON</button>
-                <button id="btn-c2-off" onclick="enviarComando('rooftop/cmd/calor2', 'OFF')">Forzar OFF</button>
+                <button id="btn-c2-on" onclick="setManual('c2', 1)">Forzar ON</button>
+                <button id="btn-c2-off" onclick="setManual('c2', 0)">Forzar OFF</button>
             </div>
         </div>
     </div>
 
     <script>
         const client = new Paho.MQTT.Client("d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud", 8884, "web_client_" + parseInt(Math.random()*1000));
+        
+        // Variables locales para el estado manual actual que se envían al ESP
+        let manualVent = 0, manualF1 = 0, manualF2 = 0, manualC1 = 0, manualC2 = 0;
         let estadoFrio1 = "OFF", estadoFrio2 = "OFF", estadoCalor1 = "OFF", estadoCalor2 = "OFF";
 
         document.addEventListener("DOMContentLoaded", () => { renderizarHistorial(); });
@@ -200,13 +202,14 @@
             }
         };
 
-        function actualizarInterfazModo() {
+        function cambiarModoOperacion() {
             const modo = document.getElementById("select-modo").value;
             const seccionForzado = document.getElementById("seccion-forzado");
             const seccionAuto = document.getElementById("seccion-auto");
             const avisoProtecciones = document.getElementById("aviso-sin-protecciones");
             
-            if (modo === "1") { // Manual
+            if (modo === "1") { // Manual -> Resetea variables locales a 0 al entrar por seguridad
+                manualVent = 0; manualF1 = 0; manualF2 = 0; manualC1 = 0; manualC2 = 0;
                 seccionForzado.classList.remove("hidden");
                 seccionAuto.classList.add("hidden");
                 avisoProtecciones.classList.remove("hidden");
@@ -219,7 +222,16 @@
                 seccionAuto.classList.add("hidden");
                 avisoProtecciones.classList.add("hidden");
             }
-            enviarComando("rooftop/cmd/modo", modo);
+            sincronizarComandos();
+        }
+
+        function setManual(componente, valor) {
+            if (componente === 'vent') manualVent = valor;
+            if (componente === 'f1') manualF1 = valor;
+            if (componente === 'f2') manualF2 = valor;
+            if (componente === 'c1') manualC1 = valor;
+            if (componente === 'c2') manualC2 = valor;
+            sincronizarComandos();
         }
 
         function actualizarSetpointVisual(val) {
@@ -227,10 +239,14 @@
             document.getElementById("lbl-setpoint-mon").innerText = val;
         }
 
-        function enviarParametrosAuto() {
+        function sincronizarComandos() {
+            const modo = document.getElementById("select-modo").value;
             const clima = document.getElementById("select-clima").value;
             const setpoint = document.getElementById("range-setpoint").value;
-            enviarComando("rooftop/cmd/config_auto", `${clima},${setpoint}`);
+
+            // Envía la trama completa unificada que el ESP1 interpreta por MQTT/Bridge
+            const payloadCompleto = `${modo},${clima},${setpoint},${manualVent},${manualF1},${manualF2},${manualC1},${manualC2}`;
+            enviarComando("rooftop/cmd/paquete_total", payloadCompleto);
         }
 
         function actualizarTextoEtapas() {
