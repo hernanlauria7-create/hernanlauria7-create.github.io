@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Monitoreo y Control Rooftop</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #f4f4f9; margin: 0; padding: 20px; }
         .card { background: white; padding: 15px; margin: 10px auto; width: 340px; border-radius: 10px; box-shadow: 0 2px 5px #ccc; }
@@ -91,11 +91,11 @@
 
         <div class="card">
             <h3>Estado Operativo de Salidas</h3>
-            <p>Ventilador: <span id="ind-vent" class="badge badge-off">APAGADO</span></p>
-            <p>Frío 1: <span id="ind-f1" class="badge badge-off">APAGADO</span></p>
-            <p>Frío 2: <span id="ind-f2" class="badge badge-off">APAGADO</span></p>
-            <p>Calor 1: <span id="ind-c1" class="badge badge-off">APAGADO</span></p>
-            <p>Calor 2: <span id="ind-c2" class="badge badge-off">APAGADO</span></p>
+            <p>Ventilador: <span id="ind-vent" class="badge badge-off">OFF</span></p>
+            <p>Frío 1: <span id="ind-f1" class="badge badge-off">OFF</span></p>
+            <p>Frío 2: <span id="ind-f2" class="badge badge-off">OFF</span></p>
+            <p>Calor 1: <span id="ind-c1" class="badge badge-off">OFF</span></p>
+            <p>Calor 2: <span id="ind-c2" class="badge badge-off">OFF</span></p>
         </div>
 
         <!-- CONTROLES DE FORZADO (SOLO VISIBLES EN MODO MANUAL) -->
@@ -135,37 +135,37 @@
     <script>
         const client = new Paho.MQTT.Client("d9c492e7fac740758650b31571bf4ed0.s1.eu.hivemq.cloud", 8884, "web_client_" + parseInt(Math.random()*1000));
         
-        let modoActualSistema = "REMOTO"; // Por defecto arranca en remoto
+        let modoActualSistema = "REMOTO";
 
         document.addEventListener("DOMContentLoaded", () => { 
             renderizarHistorial(); 
-            actualizarInterfazModo("REMOTO"); // Estado inicial por defecto
+            actualizarInterfazModo("REMOTO");
         });
 
         client.onMessageArrived = (message) => {
-            const payload = message.payloadString;
+            const payload = message.payloadString.trim().toUpperCase(); // Estandarizamos a mayúsculas para evitar errores de tipeo
             const topic = message.destinationName;
 
             console.log("MQTT Recibido -> Tópico:", topic, "| Valor:", payload);
 
             if (topic === "rooftop/sensor/ntc1") {
-                document.getElementById("ntc1").innerText = payload + " °C";
+                document.getElementById("ntc1").innerText = message.payloadString + " °C";
             } else if (topic === "rooftop/sensor/ntc2") {
-                document.getElementById("ntc2").innerText = payload + " °C";
+                document.getElementById("ntc2").innerText = message.payloadString + " °C";
             } else if (topic === "rooftop/sensor/baja1") {
-                document.getElementById("baja1").innerText = payload + " °C";
+                document.getElementById("baja1").innerText = message.payloadString + " °C";
             } else if (topic === "rooftop/sensor/baja2") {
-                document.getElementById("baja2").innerText = payload + " °C";
+                document.getElementById("baja2").innerText = message.payloadString + " °C";
             } else if (topic === "rooftop/estado/alerta") {
-                document.getElementById("txt_alerta").innerText = payload;
+                document.getElementById("txt_alerta").innerText = message.payloadString;
             } 
             // MODO DE OPERACIÓN
             else if (topic === "rooftop/estado/modo") {
                 modoActualSistema = payload;
-                document.getElementById("txt_modo").innerText = payload;
+                document.getElementById("txt_modo").innerText = message.payloadString;
                 actualizarInterfazModo(payload);
             } 
-            // PRESOSTATOS Y VENTILACIÓN
+            // PRESOSTATOS Y VENTILACIÓN CONFIGURACIÓN
             else if (topic === "rooftop/estado/baja1_ok") {
                 actualizarBadge("ind_baja1_ok", payload);
             } else if (topic === "rooftop/estado/alta1_ok") {
@@ -176,9 +176,9 @@
                 actualizarBadge("ind_alta2_ok", payload);
             } else if (topic === "rooftop/estado/vent_conf") {
                 actualizarBadge("ind_vent_conf", payload);
-                document.getElementById("txt_conf").innerText = (payload === "ON") ? "Confirmado" : "Sin confirmar";
+                document.getElementById("txt_conf").innerText = (payload === "ON" || payload === "1" || payload === "TRUE") ? "Confirmado" : "Sin confirmar";
             } 
-            // ESTADOS DE SALIDAS (Actualizan insignias y recalculan etapas inmediatamente)
+            // ESTADOS DE SALIDAS
             else if (topic === "rooftop/estado/ventilador") {
                 actualizarBadge("ind-vent", payload);
                 actualizarBotonEstado("btn-vent-on", "btn-vent-off", payload);
@@ -201,15 +201,20 @@
             }
         };
 
-        // Función robusta que lee directamente las insignias activas en pantalla
+        // Función infalible que revisa el texto real impreso en las insignias de salida
         function actualizarTextoEtapas() {
             let cFrio = 0;
             let cCalor = 0;
 
-            if (document.getElementById("ind-f1").classList.contains("badge-on")) cFrio++;
-            if (document.getElementById("ind-f2").classList.contains("badge-on")) cFrio++;
-            if (document.getElementById("ind-c1").classList.contains("badge-on")) cCalor++;
-            if (document.getElementById("ind-c2").classList.contains("badge-on")) cCalor++;
+            let f1 = document.getElementById("ind-f1").innerText.trim().toUpperCase();
+            let f2 = document.getElementById("ind-f2").innerText.trim().toUpperCase();
+            let c1 = document.getElementById("ind-c1").innerText.trim().toUpperCase();
+            let c2 = document.getElementById("ind-c2").innerText.trim().toUpperCase();
+
+            if (f1 === "ON" || f1 === "1" || f1 === "TRUE" || f1 === "ACTIVADO") cFrio++;
+            if (f2 === "ON" || f2 === "1" || f2 === "TRUE" || f2 === "ACTIVADO") cFrio++;
+            if (c1 === "ON" || c1 === "1" || c1 === "TRUE" || c1 === "ACTIVADO") cCalor++;
+            if (c2 === "ON" || c2 === "1" || c2 === "TRUE" || c2 === "ACTIVADO") cCalor++;
 
             let texto = "Apagado";
             if (cFrio > 0) {
@@ -225,16 +230,18 @@
         function actualizarBadge(elementId, estado) {
             const el = document.getElementById(elementId);
             if(el) {
-                el.innerText = (estado === "ON") ? "ON" : "OFF";
-                el.className = "badge " + (estado === "ON" ? "badge-on" : "badge-off");
+                let activo = (estado === "ON" || estado === "1" || estado === "TRUE" || estado === "ACTIVADO");
+                el.innerText = activo ? "ON" : "OFF";
+                el.className = "badge " + (activo ? "badge-on" : "badge-off");
             }
         }
 
         function actualizarBotonEstado(btnOnId, btnOffId, estado) {
             const btnOn = document.getElementById(btnOnId);
             const btnOff = document.getElementById(btnOffId);
+            let activo = (estado === "ON" || estado === "1" || estado === "TRUE" || estado === "ACTIVADO");
             if (btnOn && btnOff) {
-                if (estado === "ON") {
+                if (activo) {
                     btnOn.className = "btn-activo";
                     btnOff.className = "";
                 } else {
@@ -258,14 +265,12 @@
                 btnAuto.className = (modoActual === "AUTOMATICO") ? "btn-activo" : "";
             }
 
-            // Mostrar u ocultar controles de forzado solo si es MANUAL
             if (modoActual === "MANUAL") {
                 panelControles.classList.remove("hidden");
             } else {
                 panelControles.classList.add("hidden");
             }
 
-            // Mostrar u ocultar información de temperatura de 25°C solo si es AUTOMATICO
             if (modoActual === "AUTOMATICO") {
                 panelTempAuto.classList.remove("hidden");
                 bloqueSetpointMonitoreo.classList.remove("hidden");
