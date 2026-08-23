@@ -143,65 +143,66 @@
         });
 
         client.onMessageArrived = (message) => {
-            const payload = message.payloadString.trim().toUpperCase(); // Estandarizamos a mayúsculas para evitar errores de tipeo
+            const payload = message.payloadString.trim();
+            const payloadUpper = payload.toUpperCase();
             const topic = message.destinationName;
 
             console.log("MQTT Recibido -> Tópico:", topic, "| Valor:", payload);
 
             if (topic === "rooftop/sensor/ntc1") {
-                document.getElementById("ntc1").innerText = message.payloadString + " °C";
+                document.getElementById("ntc1").innerText = payload + " °C";
             } else if (topic === "rooftop/sensor/ntc2") {
-                document.getElementById("ntc2").innerText = message.payloadString + " °C";
+                document.getElementById("ntc2").innerText = payload + " °C";
             } else if (topic === "rooftop/sensor/baja1") {
-                document.getElementById("baja1").innerText = message.payloadString + " °C";
+                document.getElementById("baja1").innerText = payload + " °C";
             } else if (topic === "rooftop/sensor/baja2") {
-                document.getElementById("baja2").innerText = message.payloadString + " °C";
+                document.getElementById("baja2").innerText = payload + " °C";
             } else if (topic === "rooftop/estado/alerta") {
-                document.getElementById("txt_alerta").innerText = message.payloadString;
+                document.getElementById("txt_alerta").innerText = payload;
             } 
             // MODO DE OPERACIÓN
             else if (topic === "rooftop/estado/modo") {
-                modoActualSistema = payload;
-                document.getElementById("txt_modo").innerText = message.payloadString;
-                actualizarInterfazModo(payload);
+                modoActualSistema = payloadUpper;
+                document.getElementById("txt_modo").innerText = payload;
+                actualizarInterfazModo(payloadUpper);
             } 
             // PRESOSTATOS Y VENTILACIÓN CONFIGURACIÓN
             else if (topic === "rooftop/estado/baja1_ok") {
-                actualizarBadge("ind_baja1_ok", payload);
+                actualizarBadge("ind_baja1_ok", payloadUpper);
             } else if (topic === "rooftop/estado/alta1_ok") {
-                actualizarBadge("ind_alta1_ok", payload);
+                actualizarBadge("ind_alta1_ok", payloadUpper);
             } else if (topic === "rooftop/estado/baja2_ok") {
-                actualizarBadge("ind_baja2_ok", payload);
+                actualizarBadge("ind_baja2_ok", payloadUpper);
             } else if (topic === "rooftop/estado/alta2_ok") {
-                actualizarBadge("ind_alta2_ok", payload);
+                actualizarBadge("ind_alta2_ok", payloadUpper);
             } else if (topic === "rooftop/estado/vent_conf") {
-                actualizarBadge("ind_vent_conf", payload);
-                document.getElementById("txt_conf").innerText = (payload === "ON" || payload === "1" || payload === "TRUE") ? "Confirmado" : "Sin confirmar";
+                actualizarBadge("ind_vent_conf", payloadUpper);
+                document.getElementById("txt_conf").innerText = (payloadUpper === "ON" || payloadUpper === "1" || payloadUpper === "TRUE") ? "Confirmado" : "Sin confirmar";
             } 
             // ESTADOS DE SALIDAS
             else if (topic === "rooftop/estado/ventilador") {
-                actualizarBadge("ind-vent", payload);
-                actualizarBotonEstado("btn-vent-on", "btn-vent-off", payload);
+                actualizarBadge("ind-vent", payloadUpper);
+                actualizarBotonEstado("btn-vent-on", "btn-vent-off", payloadUpper);
             } else if (topic === "rooftop/estado/frio1") {
-                actualizarBadge("ind-f1", payload);
-                actualizarBotonEstado("btn-f1-on", "btn-f1-off", payload);
+                actualizarBadge("ind-f1", payloadUpper);
+                actualizarBotonEstado("btn-f1-on", "btn-f1-off", payloadUpper);
                 actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/frio2") {
-                actualizarBadge("ind-f2", payload);
-                actualizarBotonEstado("btn-f2-on", "btn-f2-off", payload);
+                actualizarBadge("ind-f2", payloadUpper);
+                actualizarBotonEstado("btn-f2-on", "btn-f2-off", payloadUpper);
                 actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/calor1") {
-                actualizarBadge("ind-c1", payload);
-                actualizarBotonEstado("btn-c1-on", "btn-c1-off", payload);
+                actualizarBadge("ind-c1", payloadUpper);
+                actualizarBotonEstado("btn-c1-on", "btn-c1-off", payloadUpper);
                 actualizarTextoEtapas();
             } else if (topic === "rooftop/estado/calor2") {
-                actualizarBadge("ind-c2", payload);
-                actualizarBotonEstado("btn-c2-on", "btn-c2-off", payload);
+                actualizarBadge("ind-c2", payloadUpper);
+                actualizarBotonEstado("btn-c2-on", "btn-c2-off", payloadUpper);
                 actualizarTextoEtapas();
             }
         };
 
-        // Función infalible que revisa el texto real impreso en las insignias de salida
+        // Función directa para evaluar las etapas según el texto actual en las insignias
         function actualizarTextoEtapas() {
             let cFrio = 0;
             let cCalor = 0;
@@ -308,6 +309,9 @@
             onSuccess: () => {
                 client.subscribe("rooftop/sensor/#");
                 client.subscribe("rooftop/estado/#");
+                
+                // Pedimos al ESP32 que envíe todos los estados actuales al conectar
+                enviarComando("rooftop/cmd/leer", "STATUS");
             }
         });
 
@@ -315,6 +319,7 @@
             if (document.getElementById("txt-pass").value === "1234") {
                 document.getElementById("vista-monitoreo").classList.add("hidden");
                 document.getElementById("vista-tecnico").classList.remove("hidden");
+                actualizarTextoEtapas(); // Forzar recálculo al entrar
             } else {
                 alert("Clave incorrecta");
             }
@@ -323,6 +328,7 @@
         function volverMonitoreo() {
             document.getElementById("vista-tecnico").classList.add("hidden");
             document.getElementById("vista-monitoreo").classList.remove("hidden");
+            actualizarTextoEtapas(); // Forzar recálculo al salir
         }
 
         function enviarComando(topico, valor) {
