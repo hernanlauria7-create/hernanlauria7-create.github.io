@@ -66,9 +66,13 @@
             </div>
         </div>
 
-        <!-- CONFIGURACIÓN MODO AUTOMÁTICO -->
+        <!-- CONFIGURACIÓN MODO AUTOMÁTICO (Actualizado para mostrar Temperaturas) -->
         <div id="seccion-auto" class="card hidden">
             <h3>Ajustes Automáticos</h3>
+            <div style="background: #f9f9f9; padding: 8px; border-radius: 6px; margin-bottom: 12px; font-size: 14px;">
+                <p style="margin: 4px 0;">Retorno: <strong id="ntc1-auto">---</strong></p>
+                <p style="margin: 4px 0;">Evaporador: <strong id="ntc2-auto">---</strong></p>
+            </div>
             <p>Función:</p>
             <select id="select-clima" onchange="sincronizarComandos()">
                 <option value="FRIO">Frío</option>
@@ -174,10 +178,12 @@
 
             if (topic === "rooftop/sensor/ntc1") {
                 document.getElementById("ntc1").innerText = payload + " °C";
+                document.getElementById("ntc1-auto").innerText = payload + " °C";
                 actualizarTempString();
             }
             else if (topic === "rooftop/sensor/ntc2") {
                 document.getElementById("ntc2").innerText = payload + " °C";
+                document.getElementById("ntc2-auto").innerText = payload + " °C";
                 actualizarTempString();
             }
             else if (topic === "rooftop/sensor/baja1") document.getElementById("baja1").innerText = payload + " °C";
@@ -226,7 +232,6 @@
             const ahora = new Date();
             const fechaStr = ahora.toLocaleDateString() + " " + ahora.toLocaleTimeString();
             
-            // Evitar duplicar exactamente la misma falla consecutiva
             if (historial.length > 0 && historial[0].evento === evento && !evento.includes("Modo Manual")) return;
 
             historial.unshift({ fecha: fechaStr, evento: evento, temperaturas: temps });
@@ -270,7 +275,6 @@
             else if (componente === 'c1') { manualC1 = valor; nombreComp = "Calor Etapa 1"; estadoCalor1 = valor ? "ON" : "OFF"; actualizarBotonEstado("btn-c1-on", "btn-c1-off", valor ? "ON" : "OFF"); actualizarTextoEtapas(); }
             else if (componente === 'c2') { manualC2 = valor; nombreComp = "Calor Etapa 2"; estadoCalor2 = valor ? "ON" : "OFF"; actualizarBotonEstado("btn-c2-on", "btn-c2-off", valor ? "ON" : "OFF"); actualizarTextoEtapas(); }
 
-            // Registrar acción manual en el historial
             let estadoAccion = valor ? "FORZADO ON" : "FORZADO OFF";
             registrarEnHistorial(`👆 Manual: ${nombreComp} -> ${estadoAccion}`, ultimaTemperaturaGlobal);
 
@@ -370,3 +374,4 @@
     </script>
 </body>
 </html>
+            
