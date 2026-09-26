@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+         <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -81,8 +82,15 @@
                 <option value="FRIO">Frío</option>
                 <option value="CALOR">Calor</option>
             </select>
+            
             <p style="margin-top:15px;">Temperatura Deseada: <strong id="lbl-setpoint">23</strong> °C</p>
-            <input type="range" id="range-setpoint" min="22" max="25" step="0.5" value="23" oninput="actualizarSetpointVisual(this.value)" onchange="sincronizarComandos()">
+            <input type="range" id="range-setpoint" min="22" max="25" step="0.5" value="23" oninput="actualizarVisual('lbl-setpoint', this.value)" onchange="sincronizarComandos()">
+
+            <p style="margin-top:15px;">Offset Frío (Diferencial): <strong id="lbl-offset-frio">1.0</strong> °C</p>
+            <input type="range" id="range-offset-frio" min="0.5" max="3.0" step="0.5" value="1.0" oninput="actualizarVisual('lbl-offset-frio', this.value)" onchange="sincronizarComandos()">
+
+            <p style="margin-top:15px;">Offset Calor (Diferencial): <strong id="lbl-offset-calor">1.0</strong> °C</p>
+            <input type="range" id="range-offset-calor" min="0.5" max="3.0" step="0.5" value="1.0" oninput="actualizarVisual('lbl-offset-calor', this.value)" onchange="sincronizarComandos()">
         </div>
 
         <div class="card">
@@ -253,7 +261,6 @@
             const avisoProtecciones = document.getElementById("aviso-sin-protecciones");
             
             if (modo === "1") { 
-                // Al entrar a manual, blanqueamos los comandos a 0 y reseteamos los botones visualmente a OFF
                 manualVent = 0; manualF1 = 0; manualF2 = 0; manualC1 = 0; manualC2 = 0;
                 estadoFrio1 = "OFF"; estadoFrio2 = "OFF"; estadoCalor1 = "OFF"; estadoCalor2 = "OFF";
                 
@@ -296,15 +303,19 @@
             sincronizarComandos();
         }
 
-        function actualizarSetpointVisual(val) {
-            document.getElementById("lbl-setpoint").innerText = val;
+        function actualizarVisual(elementId, val) {
+            document.getElementById(elementId).innerText = val;
         }
 
         function sincronizarComandos() {
             const modo = document.getElementById("select-modo").value;
             const clima = document.getElementById("select-clima").value;
             const setpoint = document.getElementById("range-setpoint").value;
-            const payloadCompleto = `${modo},${clima},${setpoint},${manualVent},${manualF1},${manualF2},${manualC1},${manualC2}`;
+            const offsetFrio = document.getElementById("range-offset-frio").value;
+            const offsetCalor = document.getElementById("range-offset-calor").value;
+            
+            // Paquete extendido incluyendo los offsets: modo,clima,setpoint,offsetFrio,offsetCalor,manualVent,manualF1,manualF2,manualC1,manualC2
+            const payloadCompleto = `${modo},${clima},${setpoint},${offsetFrio},${offsetCalor},${manualVent},${manualF1},${manualF2},${manualC1},${manualC2}`;
             enviarComando("rooftop/cmd/paquete_total", payloadCompleto);
         }
 
@@ -388,5 +399,4 @@
         }
     </script>
 </body>
-</html>
-                
+</html>       
