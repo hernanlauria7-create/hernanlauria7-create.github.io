@@ -54,6 +54,13 @@
         <h1>Panel Técnico y Diagnóstico</h1>
         <button onclick="volverMonitoreo()" style="background:#6c757d; color:white; margin-bottom: 15px;">Volver a Monitoreo</button>
 
+        <!-- TARJETA FIJA DE TEMPERATURAS PARA EL PANEL TÉCNICO -->
+        <div class="card">
+            <h3>Temperaturas Actuales</h3>
+            <p>Retorno: <strong id="ntc1-tech">---</strong></p>
+            <p>Evaporador (NTC 2): <strong id="ntc2-tech">---</strong></p>
+        </div>
+
         <div class="card">
             <h3>Modo de Operación</h3>
             <select id="select-modo" onchange="cambiarModoOperacion()">
@@ -66,13 +73,9 @@
             </div>
         </div>
 
-        <!-- CONFIGURACIÓN MODO AUTOMÁTICO (Actualizado para mostrar Temperaturas) -->
+        <!-- CONFIGURACIÓN MODO AUTOMÁTICO -->
         <div id="seccion-auto" class="card hidden">
             <h3>Ajustes Automáticos</h3>
-            <div style="background: #f9f9f9; padding: 8px; border-radius: 6px; margin-bottom: 12px; font-size: 14px;">
-                <p style="margin: 4px 0;">Retorno: <strong id="ntc1-auto">---</strong></p>
-                <p style="margin: 4px 0;">Evaporador: <strong id="ntc2-auto">---</strong></p>
-            </div>
             <p>Función:</p>
             <select id="select-clima" onchange="sincronizarComandos()">
                 <option value="FRIO">Frío</option>
@@ -177,13 +180,15 @@
             const topic = message.destinationName;
 
             if (topic === "rooftop/sensor/ntc1") {
-                document.getElementById("ntc1").innerText = payload + " °C";
-                document.getElementById("ntc1-auto").innerText = payload + " °C";
+                const val = payload + " °C";
+                document.getElementById("ntc1").innerText = val;
+                document.getElementById("ntc1-tech").innerText = val;
                 actualizarTempString();
             }
             else if (topic === "rooftop/sensor/ntc2") {
-                document.getElementById("ntc2").innerText = payload + " °C";
-                document.getElementById("ntc2-auto").innerText = payload + " °C";
+                const val = payload + " °C";
+                document.getElementById("ntc2").innerText = val;
+                document.getElementById("ntc2-tech").innerText = val;
                 actualizarTempString();
             }
             else if (topic === "rooftop/sensor/baja1") document.getElementById("baja1").innerText = payload + " °C";
@@ -374,4 +379,3 @@
     </script>
 </body>
 </html>
-            
