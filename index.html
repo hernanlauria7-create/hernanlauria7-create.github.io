@@ -253,7 +253,17 @@
             const avisoProtecciones = document.getElementById("aviso-sin-protecciones");
             
             if (modo === "1") { 
+                // Al entrar a manual, blanqueamos los comandos a 0 y reseteamos los botones visualmente a OFF
                 manualVent = 0; manualF1 = 0; manualF2 = 0; manualC1 = 0; manualC2 = 0;
+                estadoFrio1 = "OFF"; estadoFrio2 = "OFF"; estadoCalor1 = "OFF"; estadoCalor2 = "OFF";
+                
+                actualizarBotonEstado("btn-vent-on", "btn-vent-off", "OFF");
+                actualizarBotonEstado("btn-f1-on", "btn-f1-off", "OFF");
+                actualizarBotonEstado("btn-f2-on", "btn-f2-off", "OFF");
+                actualizarBotonEstado("btn-c1-on", "btn-c1-off", "OFF");
+                actualizarBotonEstado("btn-c2-on", "btn-c2-off", "OFF");
+                actualizarTextoEtapas();
+
                 seccionForzado.classList.remove("hidden");
                 seccionAuto.classList.add("hidden");
                 avisoProtecciones.classList.remove("hidden");
@@ -379,3 +389,4 @@
     </script>
 </body>
 </html>
+                
