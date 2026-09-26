@@ -1,5 +1,4 @@
-
-         <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -68,6 +67,7 @@
                 <option value="0" selected>Remoto Físico (Bornera)</option>
                 <option value="1">Manual / Forzado Web</option>
                 <option value="2">Automático (Setpoint)</option>
+                <option value="3">Seteos y Calibración (Offset)</option>
             </select>
             <div id="aviso-sin-protecciones" class="hidden" style="margin-top: 10px;">
                 <span class="badge badge-warning" style="width: 100%; box-sizing: border-box; padding: 8px;">⚠️ SIN PROTECCIONES (Modo Forzado)</span>
@@ -85,12 +85,24 @@
             
             <p style="margin-top:15px;">Temperatura Deseada: <strong id="lbl-setpoint">23</strong> °C</p>
             <input type="range" id="range-setpoint" min="22" max="25" step="0.5" value="23" oninput="actualizarVisual('lbl-setpoint', this.value)" onchange="sincronizarComandos()">
+        </div>
 
-            <p style="margin-top:15px;">Offset Frío (Diferencial): <strong id="lbl-offset-frio">1.0</strong> °C</p>
-            <input type="range" id="range-offset-frio" min="0.5" max="3.0" step="0.5" value="1.0" oninput="actualizarVisual('lbl-offset-frio', this.value)" onchange="sincronizarComandos()">
+        <!-- CONFIGURACIÓN DE SETEOS Y OFFSETS DE SENSORES -->
+        <div id="seccion-offset" class="card hidden">
+            <h3>Seteos / Calibración de Sensores</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Ajuste el offset para calibrar las lecturas de los 4 sensores del sistema.</p>
 
-            <p style="margin-top:15px;">Offset Calor (Diferencial): <strong id="lbl-offset-calor">1.0</strong> °C</p>
-            <input type="range" id="range-offset-calor" min="0.5" max="3.0" step="0.5" value="1.0" oninput="actualizarVisual('lbl-offset-calor', this.value)" onchange="sincronizarComandos()">
+            <p style="margin-top:10px;">Offset Retorno (NTC 1): <strong id="lbl-off-ntc1">0.0</strong> °C</p>
+            <input type="range" id="range-off-ntc1" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-ntc1', this.value)" onchange="sincronizarComandos()">
+
+            <p style="margin-top:15px;">Offset Evaporador (NTC 2): <strong id="lbl-off-ntc2">0.0</strong> °C</p>
+            <input type="range" id="range-off-ntc2" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-ntc2', this.value)" onchange="sincronizarComandos()">
+
+            <p style="margin-top:15px;">Offset Caño Baja C1: <strong id="lbl-off-baja1">0.0</strong> °C</p>
+            <input type="range" id="range-off-baja1" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-baja1', this.value)" onchange="sincronizarComandos()">
+
+            <p style="margin-top:15px;">Offset Caño Baja C2: <strong id="lbl-off-baja2">0.0</strong> °C</p>
+            <input type="range" id="range-off-baja2" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-baja2', this.value)" onchange="sincronizarComandos()">
         </div>
 
         <div class="card">
@@ -258,8 +270,15 @@
             const modo = document.getElementById("select-modo").value;
             const seccionForzado = document.getElementById("seccion-forzado");
             const seccionAuto = document.getElementById("seccion-auto");
+            const seccionOffset = document.getElementById("seccion-offset");
             const avisoProtecciones = document.getElementById("aviso-sin-protecciones");
             
+            // Ocultar todas las secciones condicionales por defecto
+            seccionForzado.classList.add("hidden");
+            seccionAuto.classList.add("hidden");
+            seccionOffset.classList.add("hidden");
+            avisoProtecciones.classList.add("hidden");
+
             if (modo === "1") { 
                 manualVent = 0; manualF1 = 0; manualF2 = 0; manualC1 = 0; manualC2 = 0;
                 estadoFrio1 = "OFF"; estadoFrio2 = "OFF"; estadoCalor1 = "OFF"; estadoCalor2 = "OFF";
@@ -272,18 +291,15 @@
                 actualizarTextoEtapas();
 
                 seccionForzado.classList.remove("hidden");
-                seccionAuto.classList.add("hidden");
                 avisoProtecciones.classList.remove("hidden");
                 registrarEnHistorial("🛠️ Ingreso a Modo Manual / Forzado", ultimaTemperaturaGlobal);
             } else if (modo === "2") { 
-                seccionForzado.classList.add("hidden");
                 seccionAuto.classList.remove("hidden");
-                avisoProtecciones.classList.add("hidden");
                 registrarEnHistorial("⚙️ Cambio a Modo Automático", ultimaTemperaturaGlobal);
+            } else if (modo === "3") { 
+                seccionOffset.classList.remove("hidden");
+                registrarEnHistorial("🎛️ Ingreso a Seteos y Calibración (Offset)", ultimaTemperaturaGlobal);
             } else { 
-                seccionForzado.classList.add("hidden");
-                seccionAuto.classList.add("hidden");
-                avisoProtecciones.classList.add("hidden");
                 registrarEnHistorial("🔌 Cambio a Modo Remoto Físico", ultimaTemperaturaGlobal);
             }
             sincronizarComandos();
@@ -311,11 +327,14 @@
             const modo = document.getElementById("select-modo").value;
             const clima = document.getElementById("select-clima").value;
             const setpoint = document.getElementById("range-setpoint").value;
-            const offsetFrio = document.getElementById("range-offset-frio").value;
-            const offsetCalor = document.getElementById("range-offset-calor").value;
+            const offNtc1 = document.getElementById("range-off-ntc1").value;
+            const offNtc2 = document.getElementById("range-off-ntc2").value;
+            const offBaja1 = document.getElementById("range-off-baja1").value;
+            const offBaja2 = document.getElementById("range-off-baja2").value;
             
-            // Paquete extendido incluyendo los offsets: modo,clima,setpoint,offsetFrio,offsetCalor,manualVent,manualF1,manualF2,manualC1,manualC2
-            const payloadCompleto = `${modo},${clima},${setpoint},${offsetFrio},${offsetCalor},${manualVent},${manualF1},${manualF2},${manualC1},${manualC2}`;
+            // Paquete extendido incluyendo los 4 offsets individuales:
+            // formato: modo,clima,setpoint,offNtc1,offNtc2,offBaja1,offBaja2,manualVent,manualF1,manualF2,manualC1,manualC2
+            const payloadCompleto = `${modo},${clima},${setpoint},${offNtc1},${offNtc2},${offBaja1},${offBaja2},${manualVent},${manualF1},${manualF2},${manualC1},${manualC2}`;
             enviarComando("rooftop/cmd/paquete_total", payloadCompleto);
         }
 
@@ -399,4 +418,5 @@
         }
     </script>
 </body>
-</html>       
+</html>
+         
