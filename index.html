@@ -13,6 +13,8 @@
         button { padding: 8px 15px; margin: 5px; font-size: 14px; cursor: pointer; border: 2px solid #ccc; border-radius: 5px; background-color: #e4e4e4; }
         .btn-activo { background-color: #28a745 !important; color: white !important; border-color: #1e7e34 !important; font-weight: bold; }
         .btn-inactivo { background-color: #dc3545 !important; color: white !important; border-color: #bd2130 !important; }
+        .btn-accion { background-color: #007bff !important; color: white !important; border-color: #0056b3 !important; font-weight: bold; width: 100%; margin-top: 10px; }
+        .btn-accion:disabled { background-color: #cccccc !important; border-color: #999999 !important; color: #666666 !important; cursor: not-allowed; }
         .hidden { display: none; }
         input[type="password"] { padding: 8px; font-size: 14px; width: 150px; }
         select { padding: 8px; font-size: 14px; border-radius: 5px; width: 100%; max-width: 220px; }
@@ -93,16 +95,18 @@
             <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Ajuste el offset para calibrar las lecturas de los 4 sensores del sistema.</p>
 
             <p style="margin-top:10px;">Offset Retorno (NTC 1): <strong id="lbl-off-ntc1">0.0</strong> °C</p>
-            <input type="range" id="range-off-ntc1" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-ntc1', this.value)" onchange="sincronizarComandos()">
+            <input type="range" id="range-off-ntc1" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="marcarModificacionOffset('lbl-off-ntc1', this.value)">
 
             <p style="margin-top:15px;">Offset Evaporador (NTC 2): <strong id="lbl-off-ntc2">0.0</strong> °C</p>
-            <input type="range" id="range-off-ntc2" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-ntc2', this.value)" onchange="sincronizarComandos()">
+            <input type="range" id="range-off-ntc2" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="marcarModificacionOffset('lbl-off-ntc2', this.value)">
 
             <p style="margin-top:15px;">Offset Caño Baja C1: <strong id="lbl-off-baja1">0.0</strong> °C</p>
-            <input type="range" id="range-off-baja1" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-baja1', this.value)" onchange="sincronizarComandos()">
+            <input type="range" id="range-off-baja1" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="marcarModificacionOffset('lbl-off-baja1', this.value)">
 
             <p style="margin-top:15px;">Offset Caño Baja C2: <strong id="lbl-off-baja2">0.0</strong> °C</p>
-            <input type="range" id="range-off-baja2" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="actualizarVisual('lbl-off-baja2', this.value)" onchange="sincronizarComandos()">
+            <input type="range" id="range-off-baja2" min="-5.0" max="5.0" step="0.5" value="0.0" oninput="marcarModificacionOffset('lbl-off-baja2', this.value)">
+
+            <button id="btn-aplicar-offset" class="btn-accion" onclick="aplicarYFijarOffsets()" disabled>Aplicar y Guardar Offsets</button>
         </div>
 
         <div class="card">
@@ -273,7 +277,6 @@
             const seccionOffset = document.getElementById("seccion-offset");
             const avisoProtecciones = document.getElementById("aviso-sin-protecciones");
             
-            // Ocultar todas las secciones condicionales por defecto
             seccionForzado.classList.add("hidden");
             seccionAuto.classList.add("hidden");
             seccionOffset.classList.add("hidden");
@@ -323,6 +326,23 @@
             document.getElementById(elementId).innerText = val;
         }
 
+        function marcarModificacionOffset(elementId, val) {
+            // Actualiza etiqueta visual y habilita el botón de confirmación
+            if (elementId === 'lbl-off-ntc1') document.getElementById('lbl-off-ntc1').innerText = val;
+            if (elementId === 'lbl-off-ntc2') document.getElementById('lbl-off-ntc2').innerText = val;
+            if (elementId === 'lbl-off-baja1') document.getElementById('lbl-off-baja1').innerText = val;
+            if (elementId === 'lbl-off-baja2') document.getElementById('lbl-off-baja2').innerText = val;
+
+            document.getElementById("btn-aplicar-offset").disabled = false;
+        }
+
+        function aplicarYFijarOffsets() {
+            // Envía los valores y vuelve a deshabilitar el botón hasta un nuevo cambio
+            sincronizarComandos();
+            document.getElementById("btn-aplicar-offset").disabled = true;
+            registrarEnHistorial("💾 Offsets de sensores aplicados y fijados", ultimaTemperaturaGlobal);
+        }
+
         function sincronizarComandos() {
             const modo = document.getElementById("select-modo").value;
             const clima = document.getElementById("select-clima").value;
@@ -332,8 +352,6 @@
             const offBaja1 = document.getElementById("range-off-baja1").value;
             const offBaja2 = document.getElementById("range-off-baja2").value;
             
-            // Paquete extendido incluyendo los 4 offsets individuales:
-            // formato: modo,clima,setpoint,offNtc1,offNtc2,offBaja1,offBaja2,manualVent,manualF1,manualF2,manualC1,manualC2
             const payloadCompleto = `${modo},${clima},${setpoint},${offNtc1},${offNtc2},${offBaja1},${offBaja2},${manualVent},${manualF1},${manualF2},${manualC1},${manualC2}`;
             enviarComando("rooftop/cmd/paquete_total", payloadCompleto);
         }
@@ -419,4 +437,31 @@
     </script>
 </body>
 </html>
-         
+
+     
+             
+            
+       
+                
+
+    
+            
+   
+
+       
+        
+           
+       
+
+           
+           
+              
+             
+            
+
+       
+    
+        
+      
+
+     
